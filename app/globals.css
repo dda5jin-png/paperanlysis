@@ -1,0 +1,294 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 248 250 252;
+    --foreground: 15 23 42;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+
+  /* 스크롤바 커스텀 */
+  ::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-100;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-slate-200 p-6;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700
+           text-white font-semibold rounded-xl transition-colors disabled:opacity-50
+           disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200
+           text-slate-700 font-semibold rounded-xl transition-colors;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   인쇄 / PDF 저장 — 정형화된 학술 보고서 스타일
+   ═══════════════════════════════════════════════════════════ */
+@media print {
+  /* ── 1. 페이지 설정 (A4, 상하 25mm / 좌우 20mm) ───────── */
+  @page {
+    size: A4 portrait;
+    margin: 25mm 20mm 25mm 20mm;
+  }
+
+  /* ── 2. 컬러 프린트 강제 허용 ──────────────────────────── */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── 3. 화면 전용 요소 완전 제거 ───────────────────────── */
+  .no-print,
+  header,
+  footer,
+  nav,
+  button,
+  [role="button"] {
+    display: none !important;
+  }
+
+  /* ── 4. body / 레이아웃 초기화 ─────────────────────────── */
+  html, body {
+    font-family: "Noto Serif KR", "Malgun Gothic", "맑은 고딕", serif !important;
+    font-size: 10pt !important;
+    line-height: 1.8 !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ── 5. 보고서 표지 헤더 (첫 페이지 상단) ──────────────── */
+  .analysis-result-container::before {
+    content: "AI 논문 분석 보고서";
+    display: block;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #1d4ed8;
+    border-bottom: 2px solid #1d4ed8;
+    padding-bottom: 6pt;
+    margin-bottom: 18pt;
+  }
+
+  .analysis-result-container::after {
+    content: "AI 논문 분석기 | " attr(data-generated-at);
+    display: block;
+    font-size: 7.5pt;
+    color: #6b7280;
+    border-top: 1px solid #d1d5db;
+    padding-top: 6pt;
+    margin-top: 20pt;
+    text-align: right;
+  }
+
+  /* ── 6. 논문 헤더 카드 (파란 그라데이션 → 보고서 스타일) ── */
+  .card.bg-gradient-to-r,
+  .bg-gradient-to-r {
+    background: #f0f4ff !important;
+    border: 1.5pt solid #1d4ed8 !important;
+    border-radius: 0 !important;
+    padding: 14pt 16pt !important;
+  }
+
+  .bg-gradient-to-r h2 {
+    font-size: 13pt !important;
+    font-weight: 700 !important;
+    color: #1e3a8a !important;
+    line-height: 1.5 !important;
+    margin-bottom: 6pt !important;
+  }
+
+  /* 분석완료 뱃지 숨김 */
+  .bg-gradient-to-r p.text-blue-200,
+  .bg-gradient-to-r span[class*="border-"] {
+    display: none !important;
+  }
+
+  /* 저자·연도 */
+  .bg-gradient-to-r div.flex {
+    font-size: 9pt !important;
+    color: #374151 !important;
+  }
+
+  /* ── 7. 섹션 카드 ───────────────────────────────────────── */
+  .card {
+    background: #fff !important;
+    border: 1pt solid #d1d5db !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 12pt 14pt !important;
+    margin-bottom: 12pt !important;
+    break-inside: avoid;
+  }
+
+  /* ── 8. 섹션 타이틀 ────────────────────────────────────── */
+  .card > button {
+    /* 접기/펼치기 버튼을 정적 헤더처럼 표시 */
+    display: flex !important;
+    pointer-events: none !important;
+    cursor: default !important;
+    border: none !important;
+    background: none !important;
+    padding: 0 0 6pt 0 !important;
+    border-bottom: 1pt solid #e5e7eb !important;
+    margin-bottom: 10pt !important;
+    width: 100% !important;
+  }
+
+  /* 화살표 아이콘 제거 */
+  .card > button svg:last-child {
+    display: none !important;
+  }
+
+  /* 섹션 아이콘 색상 */
+  .card > button span.text-blue-600 svg {
+    color: #1d4ed8 !important;
+  }
+
+  /* 섹션 제목 텍스트 */
+  .card > button h3 {
+    font-size: 10.5pt !important;
+    font-weight: 700 !important;
+    color: #1e3a8a !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  /* ── 9. 라벨-값 그리드 ─────────────────────────────────── */
+  .grid.grid-cols-\[120px_1fr\] {
+    display: grid !important;
+    grid-template-columns: 90pt 1fr !important;
+    gap: 4pt 10pt !important;
+    margin-bottom: 6pt !important;
+  }
+
+  /* 라벨 */
+  .grid.grid-cols-\[120px_1fr\] > span:first-child {
+    font-size: 7.5pt !important;
+    font-weight: 700 !important;
+    color: #374151 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    padding-top: 1pt !important;
+  }
+
+  /* 값 */
+  .grid.grid-cols-\[120px_1fr\] > p {
+    font-size: 9.5pt !important;
+    color: #111 !important;
+    line-height: 1.7 !important;
+  }
+
+  /* ── 10. 불릿 리스트 ────────────────────────────────────── */
+  ul li {
+    font-size: 9.5pt !important;
+    color: #111 !important;
+    line-height: 1.7 !important;
+    margin-bottom: 3pt !important;
+  }
+
+  ul li span.bg-blue-400 {
+    background-color: #1d4ed8 !important;
+    width: 4pt !important;
+    height: 4pt !important;
+    margin-top: 6pt !important;
+  }
+
+  /* ── 11. 변수 테이블 ────────────────────────────────────── */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+    margin-top: 8pt !important;
+  }
+
+  thead tr {
+    background: #eff6ff !important;
+    border-bottom: 1.5pt solid #bfdbfe !important;
+  }
+
+  th {
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    color: #1e3a8a !important;
+    padding: 5pt 7pt !important;
+    text-align: left !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  td {
+    padding: 5pt 7pt !important;
+    color: #111 !important;
+    border-bottom: 0.5pt solid #e5e7eb !important;
+    vertical-align: top !important;
+  }
+
+  tr:last-child td {
+    border-bottom: none !important;
+  }
+
+  /* ── 12. 변수 유형 뱃지 ─────────────────────────────────── */
+  .badge {
+    font-size: 7pt !important;
+    padding: 1pt 5pt !important;
+    border-radius: 2pt !important;
+  }
+
+  /* ── 13. 분석 기법 뱃지 (본론 섹션) ────────────────────── */
+  .flex.flex-wrap.gap-2 {
+    gap: 4pt !important;
+  }
+
+  /* ── 14. 도메인 키워드 섹션 ────────────────────────────── */
+  /* 키워드 섹션은 보고서에 포함 (접힌 상태도 강제 펼침) */
+  .card .space-y-4 {
+    display: block !important;
+  }
+
+  /* ── 15. 페이지 나눔 제어 ───────────────────────────────── */
+  .card {
+    break-inside: avoid !important;
+  }
+
+  /* 논문 헤더는 항상 새 페이지 상단에 */
+  .card.bg-gradient-to-r {
+    break-before: auto !important;
+  }
+
+  /* 변수 테이블은 페이지 중간에 잘리지 않도록 */
+  table, tr {
+    break-inside: avoid !important;
+  }
+}
