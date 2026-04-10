@@ -124,7 +124,11 @@ export default function AnalysisResult({ data: initialData, onSaved }: AnalysisR
       formData.append("type", type === "ppt_outline" ? "premium" : type); // PPT는 일단 프리미엄 엔진 사용
       formData.append("storagePath", `papers/${data.id}.pdf`);
 
-      const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
+      const res = await fetch("/api/parse-pdf", { 
+        method: "POST", 
+        body: formData,
+        credentials: "include" 
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       
