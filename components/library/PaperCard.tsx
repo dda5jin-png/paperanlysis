@@ -1,6 +1,5 @@
-"use client";
-
-import { Trash2, BarChart3, Calendar, Cpu } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Trash2, BarChart3, Calendar, Cpu, ExternalLink } from "lucide-react";
 import type { PaperAnalysis } from "@/types/paper";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +11,13 @@ interface PaperCardProps {
 }
 
 export default function PaperCard({ paper, selected, onToggle, onDelete }: PaperCardProps) {
+  const router = useRouter();
   const isGemini = paper.modelId?.startsWith("gemini");
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 카드 전체의 선택(Toggle) 이벤트 방지
+    router.push(`/library/${paper.id}`);
+  };
 
   return (
     <div
@@ -37,7 +42,10 @@ export default function PaperCard({ paper, selected, onToggle, onDelete }: Paper
       </div>
 
       {/* 논문 제목 */}
-      <h3 className="text-sm font-bold text-slate-800 pr-8 leading-snug mb-2">
+      <h3 
+        onClick={handleTitleClick}
+        className="text-sm font-bold text-slate-800 pr-8 leading-snug mb-2 hover:text-blue-600 hover:underline decoration-blue-200 underline-offset-4 transition-colors"
+      >
         {paper.title}
       </h3>
 

@@ -47,28 +47,60 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "유효하지 않은 데이터입니다." }, { status: 400 });
     }
 
-    // Supabase에 저장 (upsert)
-    const { error } = await supabase
+    // ── 2. 논문 기본 정보 저장 (파일 해시 기준 중복 확인) ───
+    let paperId: string = paper.id;
+    const { data: existingPaper } = await supabase
+      .from("papers")
+      .select("id")
+      .eq("file_hash", paper.fileHash)
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (existingPaper) {
+      paperId = existingPaper.id;
+      console.log(`>>> [Save] 기존 논문 레코드 업데이트: ${paperId}`);
+    }
+
+    // 논문 메타데이터 저장/업데이트
+    const { error: paperError } = await supabase
       .from("papers")
       .upsert({
-        id: paper.id,
+        id: paperId,
         user_id: session.user.id,
         filename: paper.filename,
         title: paper.title,
         authors: paper.authors,
         year: paper.year,
+        file_hash: paper.fileHash,
+        model_id: paper.modelId,
+        model_name: paper.modelName,
+        // 하위 호환성을 위해 기존 컬럼들도 유지 (점진적 이전)
         introduction: paper.introduction,
         methodology: paper.methodology,
         conclusion: paper.conclusion,
         domain_keywords: paper.domainKeywords,
-        model_id: paper.modelId,
-        model_name: paper.modelName,
         created_at: new Date().toISOString(),
       });
 
-    if (error) throw error;
+    if (paperError) throw paperError;
 
-    return NextResponse.json({ success: true, id: paper.id });
+    // ── 3. 분석 결과 상세 저장 (analyses 테이블 캐싱) ──────
+    // 분석 내용 중 심화 데이터(변수 테이블 등)가 포함되어 있는지 확인하여 타입 결정
+    const isPremium = !!paper.methodology?.variables?.length;
+    const analysisType = isPremium ? "premium" : "basic";
+
+    const { error: analysisError } = await supabase
+      .from("analyses")
+      .upsert({
+        paper_id: paperId,
+        user_id: session.user.id,
+        type: analysisType,
+        content: paper, // 전체 객체를 캐시로 저장
+      }, { onConflict: "paper_id, user_id, type" });
+
+    if (analysisError) console.error("분석 캐시 저장 실패:", analysisError);
+
+    return NextResponse.json({ success: true, id: paperId });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

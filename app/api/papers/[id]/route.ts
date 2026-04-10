@@ -3,6 +3,39 @@ import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
+// ── GET /api/papers/[id] ─ 특정 논문 상세 조회 ──────────────────
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const supabase = await createClient();
+  const id = params.id;
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
+
+    const { data, error } = await supabase
+      .from("papers")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (error) throw error;
+    if (!data) {
+      return NextResponse.json({ error: "논문을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, paper: data });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+// ── DELETE /api/papers/[id] ─ 특정 논문 삭제 ─────────────────────
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }

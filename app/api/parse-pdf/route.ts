@@ -2,188 +2,169 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import pdfParse from "pdf-parse";
-import { buildAnalysisPrompt } from "@/lib/ai-prompts";
+import crypto from "crypto";
+import { buildBasicAnalysisPrompt, buildPremiumAnalysisPrompt } from "@/lib/ai-prompts";
 import { generateId } from "@/lib/utils";
 import { getModelById, DEFAULT_MODEL_ID } from "@/lib/models";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import type { PaperAnalysis } from "@/types/paper";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // Vercel Pro 기준 (Hobby는 10초 제한 주의)
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  console.log(">>> [POST /api/parse-pdf] 요청 시작");
+  console.log(">>> [POST /api/parse-pdf] 정밀 분석 시작");
+  const supabase = await createClient();
 
-  // ── 1. FormData 추출 (주소 방식) ──────────────────────
+  // ── 0. 인증 및 권한 확인 ────────────────────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, is_exempt, subscription_tier")
+    .eq("id", session.user.id)
+    .single();
+
+  const isPremiumUser = profile?.role === "admin" || profile?.is_exempt || profile?.subscription_tier === "pro";
+
+  // ── 1. FormData 추출 ───────────────────────────────────
   let storagePath: string;
   let modelId: string;
   let originalFilename: string;
 
   try {
     const formData = await req.formData();
-    const pathParam = formData.get("storagePath") as string | null;
-    const modelParam = formData.get("model") as string | null;
-    const nameParam = formData.get("filename") as string | null;
-
-    if (!pathParam) {
-      return NextResponse.json(
-        { error: "파일 주소(storagePath)가 전달되지 않았습니다." },
-        { status: 400 }
-      );
-    }
-    storagePath = pathParam;
-    modelId = modelParam || DEFAULT_MODEL_ID;
-    originalFilename = nameParam || "unnamed.pdf";
+    storagePath = formData.get("storagePath") as string;
+    modelId = formData.get("model") as string || DEFAULT_MODEL_ID;
+    originalFilename = formData.get("filename") as string || "unnamed.pdf";
   } catch (err) {
-    return NextResponse.json(
-      { error: "FormData 파싱 중 오류가 발생했습니다." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "입력 데이터가 유효하지 않습니다." }, { status: 400 });
   }
 
-  // ── 2. 모델 설정 확인 ───────────────────────────────────
   const modelConfig = getModelById(modelId);
-  if (!modelConfig) {
-    return NextResponse.json(
-      { error: `알 수 없는 모델 ID: ${modelId}` },
-      { status: 400 }
-    );
-  }
+  if (!modelConfig) return NextResponse.json({ error: "모델 설정 오류" }, { status: 400 });
 
-  // ── 3. API 키 확인 ──────────────────────────────────────
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const googleKey    = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-
-  if (modelConfig.provider === "claude" && !anthropicKey) {
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다." },
-      { status: 500 }
-    );
-  }
-  if (modelConfig.provider === "gemini" && !googleKey) {
-    return NextResponse.json(
-      { error: "GOOGLE_GENERATIVE_AI_API_KEY 환경변수가 설정되지 않았습니다." },
-      { status: 500 }
-    );
-  }
-
-  // ── 4. PDF → 텍스트 파싱 (저장소에서 다운로드) ───────────
-  let rawText: string;
-  let pageCount: number;
+  // ── 2. 파일 다운로드 및 해시 생성 ───────────────────────
   let buffer: Buffer;
-
+  let fileHash: string;
   try {
-    console.log(`>>> [Storage] 파일 다운로드 시작: ${storagePath}`);
     const { data: fileData, error: downloadError } = await supabase.storage
       .from("papers")
       .download(storagePath);
 
-    if (downloadError || !fileData) {
-      throw new Error(`저장소 파일 다운로드 실패: ${downloadError?.message}`);
-    }
-
+    if (downloadError || !fileData) throw new Error("다운로드 실패");
     const arrayBuffer = await fileData.arrayBuffer();
     buffer = Buffer.from(arrayBuffer);
-    const fileSizeMB = (buffer.length / (1024 * 1024)).toFixed(1);
-
-    // 페이지 수 확인
-    const meta = await pdfParse(buffer, { max: 1 });
-    pageCount = meta.numpages;
-    console.log(`>>> [PDF] ${fileSizeMB} MB, 총 ${pageCount} 페이지, 모델: ${modelConfig.name}`);
-
-    // 메모리 절약을 위해 선택적 파싱
-    // - 앞 20페이지 (서론, 방법론 핵심)
-    const headParsed = await pdfParse(buffer, { max: 20 });
-    let combinedText = headParsed.text.slice(0, 15000);
-
-    // - 만약 페이지가 많다면 뒤 10페이지 추가 (결론부)
-    if (pageCount > 25) {
-      // 대용량 파일의 경우 메모리 관리를 위해 전체 파싱 대신 일부 최적화
-      const fullParsed = await pdfParse(buffer);
-      const tailText = fullParsed.text.slice(-8000);
-      combinedText += "\n\n--- [결론/시사점 영역] ---\n\n" + tailText;
-    }
-
-    rawText = combinedText;
-    console.log(`>>> [PDF] 텍스트 추출 완료: 약 ${rawText.length}자`);
-
-    if (rawText.trim().length < 50) {
-      throw new Error("텍스트 추출량이 너무 적습니다.");
-    }
+    
+    // 파일 해시(SHA-256) 생성 - 캐싱 핵심
+    fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
+    console.log(`>>> [Cache] 파일 해시 생성 완료: ${fileHash.slice(0, 10)}...`);
   } catch (e: any) {
-    console.error("[PDF Parse Error]", e);
-    return NextResponse.json(
-      { error: `PDF 파일을 읽는 데 실패했습니다: ${e.message}` },
-      { status: 422 }
-    );
+    return NextResponse.json({ error: "저장소 파일 접근 실패" }, { status: 500 });
   }
 
-  // ── 5. AI API 호출 ──────────────────────────────────────
+  // ── 3. 캐시 확인 (Deduplication) ────────────────────────
+  // 이미 분석된 이력이 있는 논문인지 확인
+  const { data: existingPaper } = await supabase
+    .from("papers")
+    .select("id")
+    .eq("file_hash", fileHash)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPaper) {
+    console.log(`>>> [Cache] 기존 분석 이력 발견 (Paper ID: ${existingPaper.id})`);
+    
+    // 해당 논문의 분석 결과(analyses)가 있는지 확인
+    const analysisType = isPremiumUser ? "premium" : "basic";
+    const { data: cachedAnalysis } = await supabase
+      .from("analyses")
+      .select("content")
+      .eq("paper_id", existingPaper.id)
+      .eq("type", analysisType)
+      .maybeSingle();
+
+    if (cachedAnalysis) {
+      console.log(`>>> [Cache] 캐시된 분석 결과 반환 (${analysisType})`);
+      // 임시 파일 삭제 후 캐시 반환
+      await supabase.storage.from("papers").remove([storagePath]);
+      return NextResponse.json({ 
+        success: true, 
+        isCached: true,
+        result: { ...cachedAnalysis.content, id: generateId(), fileHash } 
+      });
+    }
+  }
+
+  // ── 4. PDF 텍스트 추출 ─────────────────────────────────
+  let rawText: string;
+  let pageCount: number;
+  try {
+    const meta = await pdfParse(buffer, { max: 1 });
+    pageCount = meta.numpages;
+    const parsed = await pdfParse(buffer, { max: 20 });
+    rawText = parsed.text;
+  } catch (e) {
+    return NextResponse.json({ error: "PDF 해석 실패" }, { status: 422 });
+  }
+
+  // ── 5. AI 고성능 분석 (권한에 따른 프롬프트 분기) ──────
   let analysisJson: any;
-  const prompt = buildAnalysisPrompt(rawText);
+  const prompt = isPremiumUser 
+    ? buildPremiumAnalysisPrompt(rawText) 
+    : buildBasicAnalysisPrompt(rawText);
+
+  const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
   try {
     if (modelConfig.provider === "claude") {
       const anthropic = new Anthropic({ apiKey: anthropicKey! });
       const message = await anthropic.messages.create({
         model: modelConfig.apiModel,
-        max_tokens: 4096,
+        max_tokens: 4000,
         messages: [{ role: "user", content: prompt }],
       });
-
-      const text = message.content[0].type === "text" ? message.content[0].text : "";
-      analysisJson = parseJsonResponse(text);
+      analysisJson = parseJsonResponse(message.content[0].type === "text" ? message.content[0].text : "");
     } else {
       const genAI = new GoogleGenerativeAI(googleKey!);
-      const geminiModel = genAI.getGenerativeModel({
+      const geminiModel = genAI.getGenerativeModel({ 
         model: modelConfig.apiModel,
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
+        generationConfig: { responseMimeType: "application/json" }
       });
-
       const result = await geminiModel.generateContent(prompt);
-      const text = result.response.text();
-      analysisJson = parseJsonResponse(text);
+      analysisJson = parseJsonResponse(result.response.text());
     }
   } catch (e: any) {
-    console.error(`[AI Error]`, e);
-    const msg = e.message || String(e);
-    const isLowCredit = msg.includes("credit balance") || msg.includes("billing");
-
-    return NextResponse.json(
-      {
-        error: `AI 분석 실패: ${msg}`,
-        errorCode: isLowCredit ? "INSUFFICIENT_CREDITS" : "AI_ERROR",
-        provider: modelConfig.provider,
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `AI 분석 오류: ${e.message}` }, { status: 500 });
   }
 
-  // ── 6. 최종 응답 조립 ───────────────────────────────────
+  // ── 6. 데이터 조립 및 분석 결과 캐싱 ─────────────────────
   const finalResult: PaperAnalysis = {
     id: generateId(),
     filename: originalFilename,
+    fileHash,
     createdAt: new Date().toISOString(),
     modelId: modelConfig.id,
     modelName: modelConfig.name,
     ...analysisJson,
-    title: analysisJson.title || originalFilename,
-    authors: Array.isArray(analysisJson.authors) ? analysisJson.authors : [],
-    domainKeywords: Array.isArray(analysisJson.domainKeywords) ? analysisJson.domainKeywords : [],
   };
 
-  // ── 7. 정리 (임시 파일 삭제) ─────────────────────────────
-  // 분석 완료 후 저장소 공간 절약을 위해 삭제 (선택 사항)
-  try {
-    await supabase.storage.from("papers").remove([storagePath]);
-    console.log(`>>> [Storage] 임시 파일 삭제 완료: ${storagePath}`);
-  } catch (delErr) {
-    console.error("임시 파일 삭제 실패:", delErr);
-  }
+  // 비동기로 analyses 테이블에 저장 (에러나도 응답은 보냄)
+  // 실제 서비스에서는 여기서 paper_id 매핑 작업이 필요하나, 
+  // 기존 paper 저장 로직과 맞추기 위해 클라이언트에 전달 후 클라이언트에서 최종 저장
+  
+  // 임시 스토리지 파일 정리
+  await supabase.storage.from("papers").remove([storagePath]);
 
-  return NextResponse.json({ success: true, pageCount, result: finalResult });
+  return NextResponse.json({ 
+    success: true, 
+    pageCount, 
+    isPremiumUsed: isPremiumUser,
+    result: finalResult 
+  });
 }
 
 function parseJsonResponse(text: string) {

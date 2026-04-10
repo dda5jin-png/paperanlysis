@@ -48,6 +48,21 @@ export interface PaperAnalysis {
   modelId: string;     // lib/models.ts 의 ModelConfig.id
   modelName: string;
 
+  /** 캐싱 및 중복 확인용 */
+  fileHash?: string;
+
+  createdAt: string;
+}
+
+/** 
+ * 개별 분석 조각 (캐싱 및 유료화 단위)
+ * 예: 'basic' 요약은 무료, 'methodology_deep'은 유료
+ */
+export interface AnalysisFragment {
+  id: string;
+  paperId: string;
+  type: "basic" | "premium" | "agent_report";
+  content: any;
   createdAt: string;
 }
 
