@@ -36,6 +36,7 @@ export interface PaperAnalysis {
     researchType: string;
     dataSource: string;
     variables: VariableItem[];
+    analysisMethod?: string[];
   };
   conclusion: {
     keyFindings: string[];

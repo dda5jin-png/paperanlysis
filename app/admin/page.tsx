@@ -39,7 +39,7 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setRefreshing(true);
     try {
-      const usersRes = await fetch("/api/admin/users");
+      const usersRes = await fetch("/api/admin/users", { credentials: "include" });
       const usersJson = await usersRes.json();
       if (!usersRes.ok) throw new Error(usersJson.error);
       
@@ -71,7 +71,8 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/exempt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetEmail: email, ...updates })
+        body: JSON.stringify({ targetEmail: email, ...updates }),
+        credentials: "include"
       });
       if (!res.ok) throw new Error("업데이트 실패");
       
