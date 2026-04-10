@@ -1,72 +1,78 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import Header from "@/components/Header";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paper-radar.vercel.app';
 
 export const metadata: Metadata = {
-  title: "AI 논문 분석기",
-  description: "PDF 논문을 업로드하면 구조, 방법론, 핵심 결과, 연구 한계를 자동으로 정리해주는 범용 논문 분석기",
+  title: "논문레이더 | AI 논문 분석·요약·구조화 서비스",
+  description: "복잡한 학술 논문 PDF를 업로드하고 1분 만에 논문 요약, 연구 방법론, 핵심 결과를 구조화된 리포트로 확인하세요. 전공 지식 없이도 논문의 핵심을 꿰뚫어봅니다.",
+  keywords: ["논문분석", "논문요약", "AI논문", "연구방법론", "학술지분석", "대학원논문", "논문구조화", "논문레이더", "ThesisRadar"],
+  authors: [{ name: "Paper Radar Team" }],
+  metadataBase: new URL(SITE_URL),
+  openGraph: {
+    title: "논문레이더 — 복잡한 논문을 가장 빠르게 이해하는 방법",
+    description: "PDF 업로드 한 번으로 논문 요약부터 핵심 결과까지. 구조화된 분석 리포트를 확인하세요.",
+    url: SITE_URL,
+    siteName: "논문레이더",
+    images: [
+      {
+        url: "/og-image.png", // 배포 후 이미지 추가 필요
+        width: 1200,
+        height: 630,
+        alt: "논문레이더 - AI 논문 분석 서비스",
+      },
+    ],
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "논문레이더 — AI 논문 분석·요약 서비스",
+    description: "PDF 업로드 한 번으로 논문 요약부터 핵심 결과까지 한 곳에서.",
+    images: ["/og-image.png"],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+  },
+  other: {
+    "naver-site-verification": "YOUR_NAVER_VERIFICATION_CODE", // 사용자 입력 필요
+  },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="ko">
-      <body>
-        <div className="min-h-screen flex flex-col">
-          {/* 상단 헤더 */}
-          <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm no-print">
-            <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-              {/* 로고 */}
-              <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-5 h-5">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-                <div>
-                  <h1 className="text-base font-bold text-slate-900 leading-tight">AI 논문 분석기</h1>
-                  <p className="text-xs text-slate-500">PDF 업로드로 빠르게 읽는 연구 구조 요약</p>
-                </div>
-              </Link>
-
-              {/* 네비게이션 */}
-              <nav className="flex items-center gap-1">
-                <NavLink href="/"        label="논문 분석" active />
-                <NavLink href="/library" label="서고 & 비교" active />
-                <span className="px-3 py-1.5 text-xs font-medium rounded-full bg-slate-100 text-slate-400">
-                  연구 아이디어 기능 준비 중
-                </span>
-              </nav>
-            </div>
-          </header>
-
-          {/* 본문 */}
-          <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+      </head>
+      <body className="min-h-screen bg-slate-50 font-[Pretendard] text-slate-900 antialiased">
+        <div className="flex min-h-screen flex-col">
+          <Header />
+          <main className="flex-1">
             {children}
           </main>
-
-          {/* 푸터 */}
-          <footer className="border-t border-slate-200 py-4 text-center text-xs text-slate-400 no-print">
-            © 2025 AI 논문 분석기
+          <footer className="border-t border-slate-200 bg-white py-8 no-print">
+            <div className="container mx-auto px-6 text-center">
+              <p className="text-sm font-bold text-slate-900">논문레이더 (Thesis Radar)</p>
+              <p className="mt-1 text-xs text-slate-500">© 2025 Paper Radar. All rights reserved.</p>
+            </div>
           </footer>
         </div>
       </body>
     </html>
-  );
-}
-
-function NavLink({ href, label, active }: { href: string; label: string; active?: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-        active
-          ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-          : "bg-slate-100 text-slate-400"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }

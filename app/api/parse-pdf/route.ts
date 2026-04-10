@@ -8,7 +8,7 @@ import { getModelById, DEFAULT_MODEL_ID } from "@/lib/models";
 import type { PaperAnalysis } from "@/types/paper";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 60; // Vercel Pro 기준 (Hobby는 10초 제한 주의)
 
 export async function POST(req: NextRequest) {
   console.log(">>> [POST /api/parse-pdf] 요청 시작");
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     }
     file = uploaded as File;
     modelId = modelParam || DEFAULT_MODEL_ID;
-  } catch {
+  } catch (err) {
     return NextResponse.json(
       { error: "FormData 파싱 중 오류가 발생했습니다." },
       { status: 400 }
@@ -63,62 +63,56 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 4. PDF → 텍스트 파싱 ────────────────────────────────
+  // ── 4. PDF → 텍스트 파싱 (최적화) ─────────────────────────
   let rawText: string;
   let pageCount: number;
   try {
     const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-    console.log(`>>> [PDF] ${fileSizeMB} MB, 모델: ${modelConfig.name}`);
-
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 페이지 수 선확인 (max:1로 빠르게)
+    // 페이지 수 확인
     const meta = await pdfParse(buffer, { max: 1 });
     pageCount = meta.numpages;
-    console.log(`>>> [PDF] 총 ${pageCount} 페이지`);
+    console.log(`>>> [PDF] ${fileSizeMB} MB, 총 ${pageCount} 페이지, 모델: ${modelConfig.name}`);
 
-    // 앞 20페이지 추출 (서론·연구방법)
-    const HEAD_PAGES = Math.min(20, pageCount);
-    const headParsed = await pdfParse(buffer, { max: HEAD_PAGES });
-    const headText   = headParsed.text.slice(0, 8_000);
+    // 메모리 절약을 위해 선택적 파싱
+    // - 앞 15페이지 (서론, 방법론 핵심)
+    const headParsed = await pdfParse(buffer, { max: 15 });
+    let combinedText = headParsed.text.slice(0, 12000);
 
-    // 뒤 ~10페이지 추출 (결론·시사점) — 50MB 미만일 때만
-    let tailText = "";
-    if (pageCount > HEAD_PAGES && file.size < 50 * 1024 * 1024) {
-      const fullParsed = await pdfParse(buffer);
-      const allText    = fullParsed.text;
-      const tailOffset = Math.floor((allText.length / pageCount) * (pageCount - 10));
-      tailText = allText.slice(tailOffset).slice(-4_000);
+    // - 만약 페이지가 많다면 뒤 5페이지 추가 (결론부)
+    if (pageCount > 20) {
+      // 뒤쪽 텍스트를 가져오기 위해 전체를 파싱하되 텍스트만 추출
+      // Vercel 램 제한을 고려하여 파일이 20MB 이하일 때만 수행
+      if (file.size < 20 * 1024 * 1024) {
+        const fullParsed = await pdfParse(buffer);
+        const tailText = fullParsed.text.slice(-5000);
+        combinedText += "\n\n--- [결론/시사점 영역] ---\n\n" + tailText;
+      }
     }
 
-    rawText = headText + (tailText ? "\n\n--- [결론부] ---\n\n" + tailText : "");
-    console.log(`>>> [PDF] 추출 완료: ${rawText.length}자`);
+    rawText = combinedText;
+    console.log(`>>> [PDF] 텍스트 추출 완료: 약 ${rawText.length}자`);
 
-    if (rawText.trim().length < 100) {
-      return NextResponse.json(
-        { error: "PDF에서 텍스트를 추출할 수 없습니다. 스캔 이미지 PDF이거나 암호화된 파일일 수 있습니다." },
-        { status: 422 }
-      );
+    if (rawText.trim().length < 50) {
+      throw new Error("텍스트 추출량이 너무 적습니다.");
     }
   } catch (e) {
     console.error("[PDF Parse Error]", e);
     return NextResponse.json(
-      { error: "PDF 파일 파싱에 실패했습니다. 유효한 PDF인지 확인해 주세요." },
+      { error: "PDF 파일을 읽는 데 실패했습니다. 스캔 이미지이거나 보안이 걸린 파일일 수 있습니다." },
       { status: 422 }
     );
   }
 
   // ── 5. AI API 호출 ──────────────────────────────────────
-  let analysisJson: Omit<PaperAnalysis, "id" | "filename" | "createdAt" | "modelId" | "modelName">;
+  let analysisJson: any;
   const prompt = buildAnalysisPrompt(rawText);
 
   try {
     if (modelConfig.provider === "claude") {
-      // ── Claude (Anthropic SDK) ────────────────────────
       const anthropic = new Anthropic({ apiKey: anthropicKey! });
-      console.log(`>>> [Claude] ${modelConfig.apiModel} 호출...`);
-
       const message = await anthropic.messages.create({
         model: modelConfig.apiModel,
         max_tokens: 4096,
@@ -127,33 +121,27 @@ export async function POST(req: NextRequest) {
 
       const text = message.content[0].type === "text" ? message.content[0].text : "";
       analysisJson = parseJsonResponse(text);
-
     } else {
-      // ── Gemini (Google SDK) ───────────────────────────
       const genAI = new GoogleGenerativeAI(googleKey!);
-      console.log(`>>> [Gemini] ${modelConfig.apiModel} 호출...`);
-
       const geminiModel = genAI.getGenerativeModel({
         model: modelConfig.apiModel,
         generationConfig: {
-          responseMimeType: "application/json", // JSON 모드 강제
+          responseMimeType: "application/json",
         },
       });
 
       const result = await geminiModel.generateContent(prompt);
-      const text   = result.response.text();
+      const text = result.response.text();
       analysisJson = parseJsonResponse(text);
     }
-  } catch (e) {
-    console.error(`[AI Error - ${modelConfig.name}]`, e);
-    const msg = e instanceof Error ? e.message : String(e);
-
-    // Anthropic 잔액 부족 에러 감지
-    const isLowCredit = msg.includes("credit balance is too low") || msg.includes("billing to upgrade");
+  } catch (e: any) {
+    console.error(`[AI Error]`, e);
+    const msg = e.message || String(e);
+    const isLowCredit = msg.includes("credit balance") || msg.includes("billing");
 
     return NextResponse.json(
       {
-        error: `AI 분석 중 오류가 발생했습니다 (${modelConfig.name}): ${msg}`,
+        error: `AI 분석 실패: ${msg}`,
         errorCode: isLowCredit ? "INSUFFICIENT_CREDITS" : "AI_ERROR",
         provider: modelConfig.provider,
       },
@@ -162,60 +150,31 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 6. 최종 응답 조립 ───────────────────────────────────
-  const result: PaperAnalysis = {
-    id:        generateId(),
-    filename:  file.name,
+  const finalResult: PaperAnalysis = {
+    id: generateId(),
+    filename: file.name,
     createdAt: new Date().toISOString(),
-    modelId:   modelConfig.id,
+    modelId: modelConfig.id,
     modelName: modelConfig.name,
     ...analysisJson,
-    title:          analysisJson.title          ?? file.name,
-    authors:        analysisJson.authors        ?? [],
-    year:           analysisJson.year           ?? "",
-    domainKeywords: analysisJson.domainKeywords ?? [],
+    title: analysisJson.title || file.name,
+    authors: Array.isArray(analysisJson.authors) ? analysisJson.authors : [],
+    domainKeywords: Array.isArray(analysisJson.domainKeywords) ? analysisJson.domainKeywords : [],
   };
 
-  console.log(">>> [완료] 분석 성공");
-  return NextResponse.json({ success: true, pageCount, result });
+  return NextResponse.json({ success: true, pageCount, result: finalResult });
 }
 
-/** JSON 파싱 헬퍼 — 코드블록 제거 및 유효한 첫 번째 JSON 객체 추출 */
 function parseJsonResponse(text: string) {
-  // 1. 마크다운 코드블록 제거
-  const cleaned = text
-    .replace(/```json\n?/g, "")
-    .replace(/```\n?/g, "")
-    .trim();
-
+  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   try {
-    // 가장 먼저 있는 그대로 파싱 시도
     return JSON.parse(cleaned);
   } catch {
-    // 실패 시, 첫 번째 유효한 { ... } 블록 추출 시도
-    try {
-      const jsonStart = cleaned.indexOf("{");
-      if (jsonStart === -1) throw new Error("응답에서 JSON 시작점({)을 찾을 수 없습니다.");
-
-      let braceCount = 0;
-      let jsonEnd = -1;
-
-      for (let i = jsonStart; i < cleaned.length; i++) {
-        if (cleaned[i] === "{") braceCount++;
-        else if (cleaned[i] === "}") braceCount--;
-
-        if (braceCount === 0) {
-          jsonEnd = i;
-          break;
-        }
-      }
-
-      if (jsonEnd === -1) throw new Error("응답에서 닫는 중괄호(})의 짝을 찾을 수 없습니다.");
-
-      const jsonString = cleaned.substring(jsonStart, jsonEnd + 1);
-      return JSON.parse(jsonString);
-    } catch (innerError: any) {
-      console.error("[JSON Extraction Error]", innerError);
-      throw new Error(`AI 응답을 JSON으로 변환하는 데 실패했습니다: ${innerError.message}`);
+    const jsonStart = cleaned.indexOf("{");
+    const jsonEnd = cleaned.lastIndexOf("}");
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      return JSON.parse(cleaned.substring(jsonStart, jsonEnd + 1));
     }
+    throw new Error("JSON 파싱에 실패했습니다.");
   }
 }
