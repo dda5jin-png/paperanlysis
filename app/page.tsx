@@ -174,47 +174,6 @@ export default function HomePage() {
                 </div>
 
                 <PdfUploader onUpload={handleUpload} isLoading={isLoading} />
-
-                {/* 모델 선택 필드 */}
-                <div className="mt-12 space-y-6">
-                  <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">분석 모델 선택</h3>
-                  </div>
-                  
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {/* Gemini 추천군 */}
-                    {geminiModels.map((m) => (
-                      <ModelOption
-                        key={m.id}
-                        model={m}
-                        selected={state.selectedModel === m.id}
-                        onSelect={() => updateState({ selectedModel: m.id })}
-                      />
-                    ))}
-                    {/* Claude 일부 추천 */}
-                    {claudeModels.filter(m => m.tier === "balanced" || m.tier === "powerful").map((m) => (
-                      <ModelOption
-                        key={m.id}
-                        model={m}
-                        selected={state.selectedModel === m.id}
-                        onSelect={() => updateState({ selectedModel: m.id })}
-                      />
-                    ))}
-                  </div>
-
-                  {selectedModel && (
-                    <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 border border-slate-100">
-                      <div className={cn(
-                        "mt-1 h-2 w-2 rounded-full",
-                        selectedModel.provider === "gemini" ? "bg-green-500" : "bg-blue-500"
-                      )} />
-                      <div className="text-xs leading-relaxed text-slate-600">
-                        <strong className="text-slate-900">{selectedModel.name}:</strong> {selectedModel.description} (대략 {selectedModel.costLabel})
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* 에러 상태 표시 */}

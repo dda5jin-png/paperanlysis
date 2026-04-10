@@ -104,7 +104,7 @@ export default function Header() {
           ) : (
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-slate-800 active:scale-95 shadow-md shadow-slate-200"
+              className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2.5 text-xs font-bold text-white transition-all hover:bg-blue-700 active:scale-95 shadow-md shadow-blue-200"
             >
               로그인 / 회원가입
             </button>
