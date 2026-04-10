@@ -81,61 +81,64 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </p>
           </div>
 
-          <div className="space-y-4">
-            <button
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-bold text-slate-700 shadow-sm"
-            >
-              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-              Google로 계속하기
-            </button>
-
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-100"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-400 font-medium">또는 이메일로 {isLogin ? '로그인' : '가입'}</span>
+          <div className="space-y-6">
+            {/* Google Login Section */}
+            <div>
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl hover:bg-slate-50 hover:border-slate-200 transition-all font-bold text-slate-700 shadow-sm active:scale-[0.98]"
+              >
+                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                Google 계정으로 계속하기
+              </button>
+              
+              <div className="relative mt-6 mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-100"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-3 text-slate-400 font-bold tracking-widest">이메일 계정으로 {isLogin ? '로그인' : '회원가입'}</span>
+                </div>
               </div>
             </div>
 
             <form onSubmit={handleAuth} className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">이메일 계정</label>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2 ml-1">이메일 주소</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-slate-50/50"
-                  placeholder="example@email.com"
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 focus:outline-none focus:border-blue-500 focus:bg-white transition-all bg-slate-50/50 text-slate-900 font-medium"
+                  placeholder="name@example.com"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">비밀번호</label>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2 ml-1">비밀번호</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-slate-50/50"
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 focus:outline-none focus:border-blue-500 focus:bg-white transition-all bg-slate-50/50 text-slate-900 font-medium"
                   placeholder="••••••••"
                   required
                 />
               </div>
 
               {!isLogin && (
-                <div className="flex items-start gap-3 py-2 px-1">
-                  <div className="flex items-center h-5">
+                <div className="flex items-center gap-3 py-2 px-1 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                  <div className="flex items-center ml-3 h-5">
                     <input
                       id="privacy"
                       type="checkbox"
                       checked={agreed}
                       onChange={(e) => setAgreed(e.target.checked)}
-                      className="w-5 h-5 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
+                      className="w-5 h-5 rounded-md border-blue-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
                     />
                   </div>
-                  <label htmlFor="privacy" className="text-sm font-medium text-slate-600 leading-tight cursor-pointer">
-                    개인정보 수집 및 이용에 동의합니다. (필수)
+                  <label htmlFor="privacy" className="text-sm font-bold text-blue-700 cursor-pointer">
+                    개인정보 수집 및 이용 동의 (필수)
                   </label>
                 </div>
               )}
@@ -143,7 +146,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               {message && (
                 <div className={cn(
                   "p-4 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-1",
-                  message.type === "error" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+                  message.type === "error" ? "bg-red-50 text-red-600 border border-red-100" : "bg-green-50 text-green-600 border border-green-100"
                 )}>
                   {message.text}
                 </div>
@@ -152,10 +155,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/25 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
+                className="w-full py-4.5 bg-blue-600 text-white rounded-2xl font-black text-lg hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/25 disabled:opacity-50 mt-4 flex items-center justify-center gap-3"
               >
                 {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-                {isLogin ? "로그인" : "회원가입 완료"}
+                {isLogin ? "로그인하기" : "회원가입 완료"}
               </button>
             </form>
           </div>
