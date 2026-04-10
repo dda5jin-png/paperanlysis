@@ -47,8 +47,8 @@ export default function Header() {
             </svg>
           </div>
           <div>
-            <span className="block text-lg font-black tracking-tight text-slate-900">논문레이더</span>
-            <span className="block text-[10px] font-bold text-blue-600 uppercase tracking-widest">Thesis Radar</span>
+            <span className="block text-lg font-black tracking-tight text-slate-900">논문분석기</span>
+            <span className="block text-[10px] font-bold text-blue-600 uppercase tracking-widest">Paper Analysis</span>
           </div>
         </Link>
 
@@ -60,7 +60,7 @@ export default function Header() {
             서고 & 비교
           </NavLink>
           <div className="ml-2 px-3 py-1.5 text-[11px] font-semibold rounded-full bg-slate-100 text-slate-400 cursor-default">
-            AI 연구 아이디어 (준비 중)
+            연구 아이디어 (준비 중)
           </div>
         </nav>
 

@@ -126,7 +126,7 @@ export default function HomePage() {
       updateState({
         status: "analyzing",
         progress: 65,
-        message: `${modelLabel}가 논문 구조를 분석하는 중… (최대 40초 소요)`,
+        message: `${modelLabel} 분석 엔진이 논문 구조를 분석하는 중… (최대 40초 소요)`,
       });
 
       const json = await res.json();
@@ -187,7 +187,7 @@ export default function HomePage() {
               <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-12 transition-all">
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h2 className="text-xl font-black text-slate-900">논문 PDF 분석하기</h2>
+                    <h2 className="text-xl font-black text-slate-900">논문 정밀 분석하기</h2>
                     <p className="mt-1 text-sm text-slate-500">분석하고 싶은 논문 파일을 선택하거나 끌어다 놓으세요.</p>
                   </div>
                   <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
