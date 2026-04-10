@@ -20,6 +20,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   if (!isOpen) return null;
 
+  const getErrorMessage = (error: any) => {
+    const msg = error.message;
+    if (msg.includes("rate limit")) return "너무 많은 시도가 있었습니다. 잠시 후 다시 시도해 주세요.";
+    if (msg.includes("Invalid login credentials")) return "이메일 또는 비밀번호가 일치하지 않습니다.";
+    if (msg.includes("User already registered")) return "이미 가입된 이메일입니다.";
+    if (msg.includes("Email not confirmed")) return "이메일 인증이 완료되지 않았습니다. 메일함을 확인해주세요.";
+    return msg;
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLogin && !agreed) {
@@ -32,11 +41,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       ? await supabase.auth.signInWithPassword({ email, password })
       : await supabase.auth.signUp({ email, password });
     if (error) {
-      setMessage({ type: "error", text: error.message });
+      setMessage({ type: "error", text: getErrorMessage(error) });
       setLoading(false);
     } else {
       if (!isLogin) {
-        setMessage({ type: "success", text: "가입 확인 메일을 보냈습니다. 이메일을 확인해주세요!" });
+        setMessage({ type: "success", text: "가입 확인 메일을 보냈습니다! 이메일을 확인하여 인증을 완료해주세요." });
         setLoading(false);
       } else {
         onClose();
@@ -53,16 +62,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm px-4 pt-10 pb-10 flex justify-center items-start">
+    <div className="fixed inset-0 z-[100000] overflow-y-auto bg-slate-900/60 backdrop-blur-sm px-4 pt-10 pb-10 flex justify-center items-start">
       <div 
         className="fixed inset-0 pointer-events-auto"
         onClick={onClose}
       />
       
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl z-[10000] animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl z-[100001] animate-in zoom-in-95 duration-200">
         <button
           onClick={onClose}
-          className="absolute right-6 top-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-[10001]"
+          className="absolute right-6 top-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-[100002]"
         >
           <X className="w-5 h-5 text-slate-400" />
         </button>
@@ -131,8 +140,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   onChange={(e) => setAgreed(e.target.checked)}
                   className="w-5 h-5 rounded border-blue-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
                 />
-                <label htmlFor="privacy" className="text-xs font-black text-blue-700 cursor-pointer">
-                  개인정보 수집 및 이용 동의 (필수)
+                <label htmlFor="privacy" className="text-[11px] font-black text-blue-700 cursor-pointer leading-tight">
+                  개인정보 수집 및 이용 동의 (목적: 본인 이메일 계정 및 업로드 논문 서고 보관) (필수)
                 </label>
               </div>
             )}
@@ -140,7 +149,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {message && (
               <div className={cn(
                 "p-4 rounded-2xl text-xs font-black animate-in fade-in",
-                message.type === "error" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+                message.type === "error" ? "bg-red-50 text-red-600 border border-red-100" : "bg-green-50 text-green-600 border border-green-100"
               )}>
                 {message.text}
               </div>
