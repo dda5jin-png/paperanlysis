@@ -1,3 +1,5 @@
+"use client";
+
 import {
   BookOpen,
   FlaskConical,
@@ -11,6 +13,14 @@ import {
   Loader2,
   Download,
   Lock,
+  Zap,
+  ArrowRight,
+  MessageSquare,
+  FileText,
+  Presentation,
+  Share2,
+  Users,
+  Calendar
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -18,14 +28,22 @@ import type { PaperAnalysis, VariableItem, DomainKeyword } from "@/types/paper";
 import type { UserProfile } from "@/types/user";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { 
+  canAccessPremiumAnalysis, 
+  canAccessFollowup, 
+  canAccessCompareAnalysis,
+  canAccessExport,
+  getEffectiveDailyLimit
+} from "@/lib/permissions";
+import LockedFeatureCard from "@/components/premium/LockedFeatureCard";
 
 interface AnalysisResultProps {
   data: PaperAnalysis;
-  onSaved?: () => void; // 저장 완료 콜백
+  onSaved?: () => void;
+  isLibraryView?: boolean;
 }
 
 // ── 섹션 레이블 컬러 매핑 ──────────────────────────────────
-// ... (기존 변수 유지) ...
 const VARIABLE_TYPE_LABEL: Record<VariableItem["type"], string> = {
   independent: "독립변수",
   dependent:   "종속변수",
@@ -50,91 +68,60 @@ const KEYWORD_CATEGORY_COLOR: Record<DomainKeyword["category"], string> = {
   "기타":          "bg-slate-50 text-slate-500 border-slate-200",
 };
 
-// ── 접을 수 있는 섹션 래퍼 ────────────────────────────────
+// ── 보조 컴포넌트 ──────────────────────────────────────────
 function Section({
   icon,
   title,
   children,
   defaultOpen = true,
-  isLocked = false,
-  onUnlock,
 }: {
   icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
-  isLocked?: boolean;
-  onUnlock?: () => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={cn("card overflow-hidden transition-all duration-300", isLocked && "border-blue-100 bg-blue-50/20")}>
+    <div className="card overflow-hidden bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
       <button
-        onClick={() => !isLocked && setOpen((o) => !o)}
-        className={cn("w-full flex items-center justify-between gap-3 text-left", isLocked && "cursor-default")}
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-3 text-left"
       >
-        <div className="flex items-center gap-2">
-          <span className={cn("text-blue-600", isLocked && "text-slate-400")}>{icon}</span>
-          <h3 className="text-base font-bold text-slate-800">{title}</h3>
-          {isLocked && (
-            <span className="badge bg-blue-600 text-white border-0 text-[10px] py-0.5 px-2 flex items-center gap-1">
-              <Lock className="w-2.5 h-2.5" /> Premium
-            </span>
-          )}
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-xl text-blue-600">
+            {icon}
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
         </div>
-        {!isLocked && (
-          open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />
-        )}
+        {open ? <ChevronUp className="w-5 h-5 text-slate-300" /> : <ChevronDown className="w-5 h-5 text-slate-300" />}
       </button>
 
-      {open && (
-        <div className="relative mt-5">
-          <div className={cn("space-y-4 transition-all duration-500", isLocked && "blur-sm opacity-40 select-none pointer-events-none")}>
-            {children}
-          </div>
-          
-          {isLocked && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-white/50 rounded-xl">
-              <div className="bg-blue-600 p-2.5 rounded-full mb-3 shadow-lg shadow-blue-200/50">
-                <Lock className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-sm font-bold text-slate-900 mb-1">상세 분석 기능은 프리즈엄 전용입니다</p>
-              <p className="text-xs text-slate-500 mb-4 px-4 leading-relaxed">연구 방법론, 주요 변수 테이블, 그리고<br/>전문 시사점을 확인하고 연구 효율을 높이세요.</p>
-              <button 
-                onClick={onUnlock}
-                className="btn-primary text-xs py-2 px-6 shadow-md hover:scale-105 transition-transform"
-              >
-                프리미엄 기능 활성화하기
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {open && <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-400">{children}</div>}
     </div>
   );
 }
 
-// ── 라벨-값 행 ────────────────────────────────────────────
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
-      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide pt-0.5">
+    <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-2 md:gap-4 items-start">
+      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest pt-1">
         {label}
       </span>
-      <p className="text-sm text-slate-700 leading-relaxed">{value || "—"}</p>
+      <p className="text-sm text-slate-700 leading-relaxed font-medium">{value || "—"}</p>
     </div>
   );
 }
 
-// ── 불릿 목록 ─────────────────────────────────────────────
 function BulletList({ items }: { items: string[] }) {
   if (!items || items.length === 0) return <p className="text-sm text-slate-400">—</p>;
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-4">
       {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />
-          <span className="leading-relaxed">{item}</span>
+        <li key={i} className="flex items-start gap-4 group">
+          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+            {i + 1}
+          </div>
+          <span className="text-sm text-slate-700 leading-relaxed pt-0.5">{item}</span>
         </li>
       ))}
     </ul>
@@ -142,45 +129,70 @@ function BulletList({ items }: { items: string[] }) {
 }
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────
-export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
+export default function AnalysisResult({ data: initialData, onSaved, isLibraryView = false }: AnalysisResultProps) {
   const router = useRouter();
+  const [data, setData] = useState<PaperAnalysis>(initialData);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [deepAnalysisStatus, setDeepAnalysisStatus] = useState<"idle" | "loading" | "done">("idle");
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-
-  // 권한 확인: 관리자이거나 예외 권한이 있는 경우 프리미엄 허용
-  const isPremiumUser = profile?.role === "admin" || profile?.isExempt || profile?.subscriptionTier === "pro";
 
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single();
-        if (data) {
+        const { data: p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+        if (p) {
           setProfile({
-            id: data.id,
-            email: data.email,
-            role: data.role,
-            isExempt: data.is_exempt,
-            subscriptionTier: data.subscription_tier,
-            createdAt: data.created_at,
+            id: p.id,
+            email: p.email,
+            role: p.role,
+            isExempt: p.is_exempt,
+            isFreeWhitelist: p.is_free_whitelist,
+            freeDailyLimit: p.free_daily_limit,
+            paidPlan: p.paid_plan,
+            credits: p.credits,
+            isActive: p.is_active,
+            subscriptionTier: p.subscription_tier,
+            createdAt: p.created_at,
           });
         }
       }
-      setLoadingProfile(false);
     };
     fetchProfile();
   }, []);
 
-  const handleSave = async () => {
-    if (saveStatus === "saved") {
-      router.push("/library");
+  const hasPremium = canAccessPremiumAnalysis(profile);
+  const hasFollowup = canAccessFollowup(profile);
+  const hasCompare = canAccessCompareAnalysis(profile);
+  const hasExport = canAccessExport(profile);
+
+  const handleDeepAnalysis = async () => {
+    if (!hasPremium) {
+      alert("심층 분석은 프리미엄 기능입니다.");
       return;
     }
+    setDeepAnalysisStatus("loading");
+    try {
+      const formData = new FormData();
+      formData.append("filename", data.filename);
+      formData.append("type", "premium");
+      formData.append("storagePath", `papers/${data.id}.pdf`);
+
+      const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      
+      setData(json.result);
+      setDeepAnalysisStatus("done");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
+      alert(err.message);
+      setDeepAnalysisStatus("idle");
+    }
+  };
+
+  const handleSave = async () => {
+    if (saveStatus === "saved") { router.push("/library"); return; }
     setSaveStatus("saving");
     try {
       const res = await fetch("/api/papers", {
@@ -197,173 +209,228 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
     }
   };
 
-  const handlePrint = () => {
-    if (!isPremiumUser) {
-      alert("전체 보고서 인쇄 및 다운로드는 프리미엄 기능입니다.");
-      return;
-    }
-    window.print();
-  };
-
-  const handleUnlock = () => {
-    // 향후 결제 페이지로 이동하거나 관리자 문의 팝업 노출
-    alert("현재 프리미엄 기능은 관리자 승인 또는 정식 결제 후 이용 가능합니다.");
-  };
-
   return (
-    <div
-      className="space-y-5 analysis-result-container"
-      data-generated-at={`보고서 생성: ${new Date(data.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}`}
-    >
-      {/* ── 액션 버튼 바 ─────────────────────────── */}
-      <div className="flex items-center gap-2 justify-end no-print">
-        {/* 인쇄 */}
-        <button
-          onClick={handlePrint}
-          className="btn-secondary text-sm py-2"
-        >
-          <Printer className="w-4 h-4" /> 보고서 인쇄
-        </button>
-
-        {/* 서고 저장 */}
-        <button
-          onClick={handleSave}
-          disabled={saveStatus === "saving"}
-          className={cn(
-            "btn-primary text-sm py-2 transition-all",
-            saveStatus === "saved" && "bg-emerald-600 hover:bg-emerald-700",
-            saveStatus === "error"  && "bg-red-500 hover:bg-red-600"
-          )}
-        >
-          {saveStatus === "saving" && <Loader2 className="w-4 h-4 animate-spin" />}
-          {saveStatus === "saved"  && <CheckCircle2 className="w-4 h-4" />}
-          {saveStatus === "idle"   && <BookMarked className="w-4 h-4" />}
-          {saveStatus === "error"  && "저장 실패 — 재시도"}
-          {saveStatus === "saving" && "저장 중…"}
-          {saveStatus === "saved"  && "서고에서 보기 →"}
-          {saveStatus === "idle"   && "서고에 저장"}
-        </button>
-      </div>
-      
-      {/* 논문 헤더 */}
-      <div className="card bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0 shadow-lg shadow-blue-100">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-blue-200 uppercase tracking-widest">
-            분석 완료
-          </p>
-          <span
-            className={cn(
-              "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap",
-              data.modelId === "claude"
-                ? "bg-blue-500/30 border-blue-400 text-blue-100"
-                : "bg-green-500/30 border-green-400 text-green-100"
-            )}
-          >
-            {data.modelName} 엔진 작동
-          </span>
-        </div>
-        <h2 className="text-xl font-bold leading-snug">{data.title}</h2>
-        <div className="flex items-center gap-4 mt-3 text-sm text-blue-100">
-          <span>{data.authors.join(", ")}</span>
-          {data.year && (
-            <>
-              <span className="text-blue-300">·</span>
-              <span>{data.year}</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* 1. 서론 (무료 공개) */}
-      <Section icon={<BookOpen className="w-5 h-5" />} title="서론 · 연구 배경">
-        <Row label="문제 제기" value={data.introduction.problemStatement} />
-        <Row label="이론적 배경" value={data.introduction.background} />
-        <Row label="연구 질문" value={data.introduction.researchQuestion} />
-      </Section>
-
-      {/* 2. 연구방법 (Premium 전용) */}
-      <Section 
-        icon={<FlaskConical className="w-5 h-5" />} 
-        title="연구 방법론 상세"
-        isLocked={!isPremiumUser}
-        onUnlock={handleUnlock}
-      >
-        <Row label="연구 유형" value={data.methodology?.researchType} />
-        <Row label="데이터 출처" value={data.methodology?.dataSource} />
-
-        <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide pt-0.5">
-            분석 기법
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {data.methodology?.analysisMethod?.map((m, i) => (
-              <span key={i} className="badge bg-purple-50 text-purple-700 border border-purple-200">
-                {m}
-              </span>
-            ))}
+    <div className="space-y-8 max-w-5xl mx-auto pb-24">
+      {/* ── 헤더 ── */}
+      <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
+        <div className="p-8 md:p-12">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="px-4 py-1.5 bg-blue-600/10 text-blue-700 rounded-full text-xs font-black tracking-widest uppercase">Analysis Report</div>
+            <div className="w-1 h-1 bg-slate-300 rounded-full" />
+            <div className="text-xs text-slate-400 font-bold">Generated by AI Engine</div>
           </div>
-        </div>
+          
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-[1.15] mb-8 tracking-tight">
+            {data.title}
+          </h1>
 
-        {data.methodology?.variables?.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-              주요 변수 테이블
-            </p>
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left px-4 py-2.5 font-semibold text-slate-600 whitespace-nowrap">변수명</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-slate-600 whitespace-nowrap">유형</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-slate-600">설명</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.methodology.variables.map((v, i) => (
-                    <tr key={i} className={cn("border-b border-slate-100 last:border-0", i % 2 === 0 ? "bg-white" : "bg-slate-50/50")}>
-                      <td className="px-4 py-2.5 font-medium text-slate-800 whitespace-nowrap">{v.name}</td>
-                      <td className="px-4 py-2.5">
-                        <span className={cn("badge", VARIABLE_TYPE_COLOR[v.type])}>{VARIABLE_TYPE_LABEL[v.type]}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-600 leading-relaxed">{v.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="flex flex-wrap items-center gap-6 text-sm">
+            <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-50 rounded-2xl text-slate-600 font-bold">
+              <Users className="w-4 h-4 text-blue-500" />
+              {data.authors.join(", ")}
             </div>
+            {data.year && (
+              <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-50 rounded-2xl text-slate-600 font-bold">
+                <Calendar className="w-4 h-4 text-emerald-500" />
+                {data.year} 발행
+              </div>
+            )}
           </div>
-        )}
-      </Section>
+        </div>
 
-      {/* 3. 결론 (일부 Premium 적용 가능) */}
-      <Section icon={<Lightbulb className="w-5 h-5" />} title="결론 및 연구 결과">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            주요 연구 결과
-          </p>
-          <BulletList items={data.conclusion.keyFindings} />
-        </div>
-        
-        {/* 심화 결과/시사점 섹션은 프리미엄 전용으로 별도 분리하거나 하단에 비치 가능 */}
-        <div className={cn("mt-6 pt-6 border-t border-slate-100", !isPremiumUser && "blur-sm opacity-40 select-none")}>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            정책적·학술적 시사점
-          </p>
-          <BulletList items={data.conclusion.implications} />
-          <div className="mt-4 space-y-4">
-            <Row label="연구 한계" value={data.conclusion.limitations} />
-            <Row label="후속 연구 제언" value={data.conclusion.futureResearch} />
-          </div>
-        </div>
-        
-        {!isPremiumUser && (
-          <div className="mt-4 flex justify-center">
-            <button onClick={handleUnlock} className="text-xs font-bold text-blue-600 hover:underline">
-              시사점 및 후속 연구 방향 전체 보기 →
+        <div className="px-8 py-6 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between no-print">
+          <div className="flex items-center gap-6">
+            <button onClick={() => hasExport ? window.print() : alert("프리미엄 전용")} className="text-xs font-black text-slate-400 hover:text-blue-600 flex items-center gap-2 transition-all">
+              <Download className="w-4 h-4" /> LOCAL SAVE
+            </button>
+            <button className="text-xs font-black text-slate-400 hover:text-blue-600 flex items-center gap-2 transition-all">
+              <Share2 className="w-4 h-4" /> SHARE
             </button>
           </div>
-        )}
-      </Section>
+          <button
+            onClick={handleSave}
+            disabled={saveStatus === "saving"}
+            className={cn(
+              "btn-primary rounded-2xl px-8 py-3.5 shadow-xl transition-all active:scale-95 text-sm font-black",
+              saveStatus === "saved" && "bg-emerald-600 shadow-emerald-200"
+            )}
+          >
+            {saveStatus === "saving" ? <Loader2 className="w-5 h-5 animate-spin" /> : saveStatus === "saved" ? <CheckCircle2 className="w-5 h-5" /> : <BookMarked className="w-5 h-5" />}
+            {saveStatus === "saving" ? "SAVING..." : saveStatus === "saved" ? "SAVED IN LIBRARY" : "ADD TO MY LIBRARY"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── 한 줄 요약 ── */}
+      <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 rounded-[40px] p-10 md:p-14 text-white shadow-2xl shadow-blue-300/40 relative overflow-hidden group">
+         <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/4 group-hover:bg-white/20 transition-all duration-700" />
+         <div className="relative">
+            <div className="flex items-center gap-3 mb-6">
+               <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md">
+                 <Zap className="w-6 h-6 text-amber-300 fill-amber-300" />
+               </div>
+               <span className="text-xs font-black tracking-[0.3em] text-blue-100 uppercase">Core Insight</span>
+            </div>
+            <h2 className="text-2xl md:text-4xl font-black leading-[1.3] md:leading-[1.4] tracking-tight">
+               "{data.introduction.oneLineSummary || "논문의 핵심을 정밀하게 추출하고 있습니다."}"
+            </h2>
+         </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
+        <div className="space-y-8">
+          <Section icon={<BookOpen className="w-5 h-5" />} title="논문 핵심 요약">
+            <div className="space-y-10">
+              <div className="bg-blue-50/50 p-8 rounded-[32px] border border-blue-100">
+                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Research Problem</h4>
+                <p className="text-lg font-bold text-slate-800 leading-relaxed italic">
+                  {data.introduction.problemStatement}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 px-1">Main Findings (Top 3)</h4>
+                <BulletList items={data.conclusion.keyFindings.slice(0, 3)} />
+              </div>
+            </div>
+          </Section>
+
+          <Section icon={<Tag className="w-5 h-5" />} title="연구 키워드 (Top 5)">
+            <div className="flex flex-wrap gap-3">
+              {data.domainKeywords.slice(0, 5).map((kw, i) => (
+                <span key={i} className={cn("px-6 py-3 rounded-2xl border-2 text-sm font-black transition-all hover:translate-y-[-2px] hover:shadow-lg", KEYWORD_CATEGORY_COLOR[kw.category])}>
+                  #{kw.term}
+                </span>
+              ))}
+            </div>
+          </Section>
+
+          {(!hasPremium || deepAnalysisStatus === "idle") && (
+            <div className="no-print pt-4">
+              <LockedFeatureCard 
+                title="이 논문, 여기서 끝내기 아깝습니다"
+                description="실무 적용점 도출부터 방법론 검증, 비교 분석, 후속 질문까지. 논문을 완벽하게 마스터하는 프리미엄 도구를 경험해 보세요."
+                benefits={[
+                  "상세 연구방법론 및 모든 변수 관계도 추출",
+                  "정책적·실무적 구체화 시사점 (Premium Only)",
+                  "관련 논문과의 비교 분석 및 챗봇 질문 무제한",
+                  "10초 만에 끝내는 발표용 PPT 구조 생성"
+                ]}
+                ctaLabel={deepAnalysisStatus === "loading" ? "ANALYZING DEEP..." : "START DEEP ANALYSIS"}
+                onCtaClick={handleDeepAnalysis}
+              />
+            </div>
+          )}
+
+          {(hasPremium && (data.methodology?.researchType || deepAnalysisStatus === "done")) && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+               <Section icon={<FlaskConical className="w-5 h-5" />} title="연구 방법론 & 변수 구조">
+                  <div className="space-y-8">
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                           <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Method Type</p>
+                           <p className="text-lg font-black text-slate-800">{data.methodology?.researchType}</p>
+                        </div>
+                        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                           <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Data Source</p>
+                           <p className="text-lg font-black text-slate-800 truncate">{data.methodology?.dataSource}</p>
+                        </div>
+                     </div>
+                     <div className="overflow-hidden rounded-[32px] border border-slate-100">
+                        <table className="w-full text-sm">
+                           <thead className="bg-slate-50/80">
+                              <tr>
+                                 <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-tighter">Variable</th>
+                                 <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-tighter">Type</th>
+                              </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-100">
+                              {data.methodology.variables.map((v, i) => (
+                                 <tr key={i} className="bg-white hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-6 py-5 font-bold text-slate-800">{v.name}</td>
+                                    <td className="px-6 py-5">
+                                       <span className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight", VARIABLE_TYPE_COLOR[v.type])}>
+                                          {VARIABLE_TYPE_LABEL[v.type]}
+                                       </span>
+                                    </td>
+                                 </tr>
+                              ))}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               </Section>
+               <Section icon={<Zap className="w-5 h-5" />} title="전문적 시사점 & 한계">
+                  <div className="space-y-8">
+                     <div>
+                        <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-6">Expert Implications</h4>
+                        <BulletList items={data.conclusion.implications} />
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
+                        <div className="p-8 bg-slate-50 rounded-[32px] border border-slate-100/50">
+                           <h5 className="text-[10px] font-black text-slate-400 mb-4 uppercase">Limitations</h5>
+                           <p className="text-sm text-slate-600 leading-relaxed font-medium">{data.conclusion.limitations}</p>
+                        </div>
+                        <div className="p-8 bg-blue-50/50 rounded-[32px] border border-blue-100/50">
+                           <h5 className="text-[10px] font-black text-blue-400 mb-4 uppercase">Future Research</h5>
+                           <p className="text-sm text-slate-700 leading-relaxed font-bold">{data.conclusion.futureResearch}</p>
+                        </div>
+                     </div>
+                  </div>
+               </Section>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-6 sticky top-12 no-print">
+          <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-2xl shadow-slate-200/40">
+            <h5 className="text-sm font-black text-slate-900 mb-6 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400 fill-amber-400" /> NEXT STEPS
+            </h5>
+            <div className="space-y-3">
+              <QuickMenuButton icon={<MessageSquare className="w-5 h-5" />} label="챗봇에게 질문하기" locked={!hasFollowup} onClick={() => router.push(`/library/${data.id}/followup`)} />
+              <QuickMenuButton icon={<FileText className="w-5 h-5" />} label="비교 분석 리포트" locked={!hasCompare} onClick={() => alert("Coming Soon")} />
+              <QuickMenuButton icon={<Presentation className="w-5 h-5" />} label="발표용 PPT 생성" locked={!hasPremium} onClick={() => alert("Coming Soon")} />
+            </div>
+          </div>
+          
+          <div className="bg-slate-900 rounded-[40px] p-8 text-white shadow-2xl shadow-slate-300 overflow-hidden relative group">
+             <div className="absolute inset-0 bg-blue-600/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+             <div className="relative">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Member Status</p>
+                <div className="flex items-center gap-2 mb-8">
+                   <div className={cn("w-2 h-2 rounded-full", profile?.isFreeWhitelist ? "bg-emerald-400 animate-pulse" : "bg-blue-400 ")} />
+                   <p className="text-sm font-black text-slate-100 uppercase tracking-tighter">
+                     {profile?.isFreeWhitelist ? "Whitelist Member" : "Standard Tier"}
+                   </p>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-[11px] font-black uppercase">
+                     <span className="text-slate-500">Daily Balance</span>
+                     <span className="text-blue-400">{profile ? getEffectiveDailyLimit(profile) : 0} ANALYSES LEFT</span>
+                  </div>
+                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                     <div className="bg-blue-500 h-full w-[40%] shadow-[0_0_20px_rgba(59,130,246,0.5)]" />
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-bold leading-tight">관리자 권한 또는 플랜에 따라 혜택이 상이합니다.</p>
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function QuickMenuButton({ icon, label, locked, onClick }: { icon: React.ReactNode; label: string; locked?: boolean; onClick?: () => void }) {
+  return (
+    <button onClick={locked ? undefined : onClick} className={cn("group w-full flex items-center justify-between p-4 rounded-2xl text-sm font-black transition-all border-2", locked ? "opacity-40 grayscale bg-slate-50 border-slate-100 cursor-not-allowed" : "bg-white hover:bg-blue-600 text-slate-800 hover:text-white border-slate-50 hover:border-blue-600 shadow-sm hover:shadow-blue-200")}>
+      <div className="flex items-center gap-4">
+        <div className={cn("p-2 rounded-xl transition-colors", locked ? "bg-slate-100" : "bg-blue-50 group-hover:bg-blue-500")}>
+           {icon}
+        </div>
+        {label}
+      </div>
+      {locked ? <Lock className="w-4 h-4 text-slate-300" /> : <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />}
+    </button>
   );
 }

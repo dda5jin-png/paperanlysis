@@ -20,6 +20,7 @@ export interface PaperAnalysis {
 
   /** 서론: 문제제기 및 연구 배경 */
   introduction: {
+    oneLineSummary?: string;    // 한 줄 요약
     problemStatement: string;   // 연구의 문제 제기
     background: string;         // 이론적·사회적 배경
     researchQuestion: string;   // 핵심 연구 질문
