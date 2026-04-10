@@ -1,37 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
-import type { PaperAnalysis } from "@/types/paper";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
-const DB_PATH = path.join(process.cwd(), "data", "papers.json");
-
-async function readPapers(): Promise<PaperAnalysis[]> {
-  try {
-    const raw = await fs.readFile(DB_PATH, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-async function writePapers(papers: PaperAnalysis[]): Promise<void> {
-  await fs.writeFile(DB_PATH, JSON.stringify(papers, null, 2), "utf-8");
-}
-
-// ── DELETE /api/papers/[id] ──────────────────────────────
+// ── DELETE /api/papers/[id] ─ 개별 논문 삭제 ──────────────────────────
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const papers  = await readPapers();
-  const filtered = papers.filter((p) => p.id !== params.id);
+  const supabase = createRouteHandlerClient({ cookies });
 
-  if (filtered.length === papers.length) {
-    return NextResponse.json({ error: "해당 논문을 찾을 수 없습니다." }, { status: 404 });
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
+
+    // Row Level Security(RLS)가 설정되어 있으면 .eq("user_id", session.user.id)가 
+    // 없어도 되지만, 명시적으로 추가하여 안전하게 처리합니다.
+    const { error } = await supabase
+      .from("papers")
+      .delete()
+      .eq("id", params.id)
+      .eq("user_id", session.user.id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
-
-  await writePapers(filtered);
-  return NextResponse.json({ success: true });
 }

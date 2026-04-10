@@ -1,11 +1,39 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { User, LogOut, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import AuthModal from "./auth/AuthModal";
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [session, setSession] = useState<any>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    // 세션 초기화
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // 세션 변화 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+    window.location.reload();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md no-print">
@@ -37,11 +65,54 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <button className="hidden sm:inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-slate-800 active:scale-95">
-            무료 시작하기
-          </button>
+          {session ? (
+            <div className="relative">
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-all active:scale-95"
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <User className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-bold text-slate-700 truncate max-w-[100px]">
+                  {session.user.email?.split("@")[0]}님
+                </span>
+                <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform", isProfileOpen && "rotate-180")} />
+              </button>
+
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">계정 정보</p>
+                    <p className="mt-1 text-xs font-bold text-slate-900 truncate">{session.user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { router.push("/library"); setIsProfileOpen(false); }}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    내 논문 서고
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" /> 로그아웃
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-slate-800 active:scale-95 shadow-md shadow-slate-200"
+            >
+              로그인 / 회원가입
+            </button>
+          )}
         </div>
       </div>
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </header>
   );
 }
