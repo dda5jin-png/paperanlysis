@@ -16,36 +16,34 @@ import {
   Zap,
   CreditCard,
   Ban,
-  Activity
+  Activity,
+  History,
+  Plus,
+  Minus,
+  Settings2
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import type { UserProfile } from "@/types/user";
+import type { UserProfile, UsageLog } from "@/types/user";
 import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [logs, setLogs] = useState<UsageLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
-  // 1. 관리자 권한 확인 및 데이터 로드
-  const fetchUsers = async () => {
+  // 1. 데이터 로드
+  const fetchData = async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("/api/admin/users");
-      const json = await res.json();
+      const usersRes = await fetch("/api/admin/users");
+      const usersJson = await usersRes.json();
+      if (!usersRes.ok) throw new Error(usersJson.error);
       
-      if (!res.ok) {
-        if (res.status === 403) {
-          alert("관리자 권한이 없습니다.");
-          router.push("/");
-          return;
-        }
-        throw new Error(json.error);
-      }
-      
-      const mappedUsers = json.users.map((u: any) => ({
+      setUsers(usersJson.users.map((u: any) => ({
         id: u.id,
         email: u.email,
         role: u.role,
@@ -55,44 +53,36 @@ export default function AdminDashboard() {
         paidPlan: u.paid_plan,
         credits: u.credits,
         isActive: u.is_active,
-        subscriptionTier: u.subscription_tier,
         createdAt: u.created_at
-      }));
-      
-      setUsers(mappedUsers);
+      })));
     } catch (err: any) {
-      console.error("사용자 로드 실패:", err.message);
+      console.error("데이터 로드 실패:", err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // 2. 권한 업데이트 핸들러 (Generic)
-  const updateUserField = async (email: string, field: string, value: any) => {
+  // 2. 권한/수치 업데이트 핸들러
+  const handleUpdate = async (email: string, updates: Partial<UserProfile>) => {
     try {
       const res = await fetch("/api/admin/exempt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetEmail: email, [field]: value })
+        body: JSON.stringify({ targetEmail: email, ...updates })
       });
-      
       if (!res.ok) throw new Error("업데이트 실패");
       
-      // 로컬 상태 업데이트
-      setUsers(prev => prev.map(u => 
-        u.email === email ? { ...u, [field]: value } : u
-      ));
+      setUsers(prev => prev.map(u => u.email === email ? { ...u, ...updates } : u));
+      if (selectedUser?.email === email) setSelectedUser({ ...selectedUser, ...updates });
     } catch (err: any) {
       alert(err.message);
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(u => u.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
   if (loading) {
     return (
@@ -108,138 +98,135 @@ export default function AdminDashboard() {
       {/* 헤더 섹션 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
-            <div className="p-3 bg-blue-600 rounded-[24px] shadow-xl shadow-blue-200">
+          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-4 tracking-tight">
+            <div className="p-3 bg-slate-900 rounded-[24px] shadow-xl">
                <ShieldCheck className="w-8 h-8 text-white" />
             </div>
-            SaaS 관리 컨트롤 센터
+            SaaS 마스터 센터
           </h1>
-          <p className="text-sm text-slate-500 mt-2 font-medium">실시간 사용자 권한, 사용량 제한 및 프리미엄 상태를 통제합니다.</p>
+          <p className="text-sm text-slate-500 mt-2 font-medium">실시간 사용자 지렛대 및 권한 엔진을 제어합니다.</p>
         </div>
         
         <div className="flex items-center gap-4">
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text"
               placeholder="사용자 이메일 검색..."
-              className="pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all w-72 shadow-sm"
+              className="pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none w-72 transition-all shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button 
-            onClick={fetchUsers}
-            className={cn("p-4 bg-white border border-slate-200 rounded-[20px] hover:bg-slate-50 transition-all shadow-sm active:scale-95", refreshing && "animate-spin")}
-          >
+          <button onClick={fetchData} className={cn("p-4 bg-white border border-slate-200 rounded-[20px] shadow-sm hover:bg-slate-50", refreshing && "animate-spin")}>
             <RefreshCw className="w-5 h-5 text-slate-600" />
           </button>
         </div>
       </div>
 
-      {/* 사용자 카드 그리드 */}
+      {/* 사용자 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredUsers.map((user) => (
-          <div key={user.id} className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 p-8 relative overflow-hidden group hover:border-blue-200 transition-all">
-            <div className={cn(
-              "absolute top-0 right-0 w-32 h-32 blur-[60px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none transition-opacity",
-              user.role === "admin" ? "bg-purple-500/10" : user.isFreeWhitelist ? "bg-emerald-500/10" : "bg-slate-200/20"
-            )} />
-            
+          <div key={user.id} className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 p-8 relative group hover:border-blue-200 transition-all cursor-pointer" onClick={() => setSelectedUser(user)}>
             <div className="flex items-start justify-between mb-8">
-              <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-blue-50 transition-colors">
-                {user.role === "admin" ? <ShieldCheck className="w-6 h-6 text-purple-600" /> : <Users className="w-6 h-6 text-slate-600 group-hover:text-blue-600" />}
+              <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-blue-50">
+                {user.role === "admin" ? <ShieldCheck className="w-6 h-6 text-purple-600" /> : <Users className="w-6 h-6 text-slate-600" />}
               </div>
-              <div className="flex flex-col items-end gap-1.5">
-                {user.role === "admin" ? (
-                  <span className="px-3 py-1 bg-purple-600 text-white rounded-lg text-[10px] font-black tracking-widest">MASTER ADMIN</span>
-                ) : user.isFreeWhitelist ? (
-                  <span className="px-3 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-black tracking-widest shadow-lg shadow-emerald-100 italic">WHITELIST PLUS</span>
-                ) : (
-                  <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-[10px] font-black tracking-widest">STANDARD TIER</span>
-                )}
+              <div className="flex flex-col items-end gap-1.5 font-black text-[10px] tracking-tighter">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpdate(user.email, { isFreeWhitelist: !user.isFreeWhitelist });
+                  }}
+                  className={cn(
+                    "px-3 py-1 rounded-lg transition-all border",
+                    user.isFreeWhitelist 
+                      ? "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600" 
+                      : "bg-white text-slate-400 border-slate-200 hover:text-emerald-500 hover:border-emerald-500"
+                  )}
+                >
+                  {user.isFreeWhitelist ? "WHITELIST PLUS" : "WHITELIST OFF"}
+                </button>
+                {user.paidPlan === "pro" && <span className="px-3 py-1 bg-blue-600 text-white rounded-lg">PRO TIER</span>}
               </div>
             </div>
 
             <div className="space-y-6">
-              <div>
-                 <div className="flex items-center gap-2 text-slate-900 font-bold mb-1 truncate text-lg tracking-tight">
-                   {user.email}
+              <div className="text-lg font-black text-slate-900 truncate tracking-tight">{user.email}</div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="p-4 bg-slate-50 rounded-2xl text-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Credits</p>
+                    <p className="text-xl font-black text-slate-800">{user.credits}</p>
                  </div>
-                 <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                   <Calendar className="w-3.5 h-3.5" /> Established {new Date(user.createdAt).toLocaleDateString()}
-                 </div>
-              </div>
-
-              {/* 통계/잔액 섹션 */}
-              <div className="grid grid-cols-2 gap-3">
-                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">Daily Limit</p>
-                    <div className="flex items-end gap-1">
-                       <span className="text-xl font-bold text-slate-800">{user.freeDailyLimit}</span>
-                       <span className="text-[10px] text-slate-400 font-bold mb-1.5">Req/Day</span>
-                    </div>
-                 </div>
-                 <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
-                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-tighter mb-1">Credits</p>
-                    <div className="flex items-end gap-1">
-                       <span className="text-xl font-bold text-blue-700">{user.credits}</span>
-                       <span className="text-[10px] text-blue-400 font-bold mb-1.5">Pts</span>
-                    </div>
+                 <div className="p-4 bg-slate-50 rounded-2xl text-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Limit</p>
+                    <p className="text-xl font-black text-slate-800">{user.freeDailyLimit}</p>
                  </div>
               </div>
 
-              {/* 액션 컨트롤 박스 */}
-              <div className="pt-6 border-t border-slate-50 space-y-3">
-                {user.role !== "admin" && (
-                   <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateUserField(user.email, "isFreeWhitelist", !user.isFreeWhitelist)}
-                        className={cn(
-                          "flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[11px] font-black tracking-tight transition-all",
-                          user.isFreeWhitelist 
-                            ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200" 
-                            : "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-100"
-                        )}
-                      >
-                        {user.isFreeWhitelist ? <Zap className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
-                        {user.isFreeWhitelist ? "화이트리스트 해제" : "화이트리스트 승인"}
-                      </button>
-                      
-                      <button
-                        onClick={() => updateUserField(user.email, "isActive", !user.isActive)}
-                        className={cn(
-                          "p-3 rounded-2xl transition-all border",
-                          user.isActive 
-                            ? "bg-slate-50 text-slate-400 border-slate-100 hover:text-red-500 hover:border-red-100" 
-                            : "bg-red-50 text-red-600 border-red-200 animate-pulse"
-                        )}
-                        title={user.isActive ? "계정 정지" : "정지 해제"}
-                      >
-                        {user.isActive ? <Activity className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                      </button>
-                   </div>
-                )}
-                
-                <div className="flex items-center justify-between text-[10px] font-bold">
-                   <span className="text-slate-400 italic">PID: {user.id.slice(0,8)}...</span>
-                   {user.paidPlan && (
-                     <span className="text-blue-600 flex items-center gap-1">
-                        <CreditCard className="w-3 h-3" /> {user.paidPlan.toUpperCase()}
-                     </span>
-                   )}
-                </div>
+              <div className="flex items-center justify-between pt-6 border-t border-slate-50 text-[10px] font-black text-slate-400 uppercase">
+                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(user.createdAt).toLocaleDateString()}</span>
+                 <Settings2 className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {filteredUsers.length === 0 && (
-        <div className="text-center py-32 bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-200">
-          <Users className="w-16 h-16 text-slate-200 mx-auto mb-6" />
-          <p className="text-slate-400 font-black text-lg tracking-tight">일치하는 사용자를 찾을 수 없습니다.</p>
-          <button onClick={() => setSearchTerm("")} className="mt-4 text-blue-600 font-bold hover:underline">검색 초기화</button>
+      {/* 사용자 상세/수정 모달 */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl relative">
+              <button onClick={() => setSelectedUser(null)} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-900 transition-colors"><XCircle className="w-6 h-6" /></button>
+              
+              <div className="p-8 md:p-10">
+                 <h2 className="text-2xl font-black text-slate-900 mb-2">사용자 제어판</h2>
+                 <p className="text-sm font-bold text-slate-400 mb-8">{selectedUser.email}</p>
+
+                 <div className="space-y-8">
+                    {/* 크레딧 조절 */}
+                    <div className="flex items-center justify-between">
+                       <div>
+                          <p className="text-sm font-black text-slate-800 flex items-center gap-2"><CreditCard className="w-4 h-4 text-blue-500" /> 정밀 크레딧</p>
+                          <p className="text-xs text-slate-400 font-medium">수동으로 크레딧을 추가/차감합니다.</p>
+                       </div>
+                       <div className="flex items-center gap-3">
+                          <button onClick={() => handleUpdate(selectedUser.email, { credits: Math.max(0, selectedUser.credits - 10) })} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50"><Minus className="w-4 h-4" /></button>
+                          <span className="w-12 text-center font-black text-lg">{selectedUser.credits}</span>
+                          <button onClick={() => handleUpdate(selectedUser.email, { credits: selectedUser.credits + 10 })} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50"><Plus className="w-4 h-4" /></button>
+                       </div>
+                    </div>
+
+                    {/* 한도 조절 */}
+                    <div className="flex items-center justify-between">
+                       <div>
+                          <p className="text-sm font-black text-slate-800 flex items-center gap-2"><Zap className="w-4 h-4 text-amber-500" /> 일일 분석 한도</p>
+                          <p className="text-xs text-slate-400 font-medium">하루에 요청 가능한 분석 횟수입니다.</p>
+                       </div>
+                       <div className="flex items-center gap-3">
+                          <button onClick={() => handleUpdate(selectedUser.email, { freeDailyLimit: Math.max(1, selectedUser.freeDailyLimit - 1) })} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50"><Minus className="w-4 h-4" /></button>
+                          <span className="w-12 text-center font-black text-lg">{selectedUser.freeDailyLimit}</span>
+                          <button onClick={() => handleUpdate(selectedUser.email, { freeDailyLimit: selectedUser.freeDailyLimit + 1 })} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50"><Plus className="w-4 h-4" /></button>
+                       </div>
+                    </div>
+
+                    {/* 플랜/상태 토글 */}
+                    <div className="grid grid-cols-2 gap-4">
+                       <button onClick={() => handleUpdate(selectedUser.email, { isFreeWhitelist: !selectedUser.isFreeWhitelist })} className={cn("p-4 rounded-2xl text-xs font-black uppercase tracking-tight border-2 transition-all", selectedUser.isFreeWhitelist ? "bg-emerald-50 border-emerald-200 text-emerald-600" : "bg-white border-slate-100 text-slate-400")}>
+                          Whitelist Status
+                       </button>
+                       <button onClick={() => handleUpdate(selectedUser.email, { isActive: !selectedUser.isActive })} className={cn("p-4 rounded-2xl text-xs font-black uppercase tracking-tight border-2 transition-all", selectedUser.isActive ? "bg-white border-slate-100 text-slate-400" : "bg-red-50 border-red-200 text-red-600 animate-pulse")}>
+                          {selectedUser.isActive ? "Active Account" : "Account Banned"}
+                       </button>
+                    </div>
+                 </div>
+              </div>
+              
+              <div className="bg-slate-50 p-6 flex justify-center">
+                 <button onClick={() => setSelectedUser(null)} className="btn-primary rounded-2xl px-12 font-black shadow-lg shadow-blue-100">SAVE & CLOSE</button>
+              </div>
+           </div>
         </div>
       )}
     </div>

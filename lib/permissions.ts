@@ -1,60 +1,81 @@
-import type { UserProfile } from "@/types/user";
+import { UserProfile } from "@/types/user";
 
 /**
- * 사용자 관리자 여부 확인
+ * 관리자 여부 확인
  */
-export function isAdmin(profile: UserProfile | null): boolean {
+export const isAdmin = (profile: UserProfile | null): boolean => {
   return profile?.role === "admin";
-}
+};
 
 /**
- * 화이트리스트(무료 예외 권한) 사용자 여부 확인
+ * 화이트리스트(무료 예외 권한) 여부 확인
  */
-export function isWhitelisted(profile: UserProfile | null): boolean {
+export const isWhitelisted = (profile: UserProfile | null): boolean => {
+  if (isAdmin(profile)) return true;
   return profile?.isFreeWhitelist === true || profile?.isExempt === true;
-}
+};
 
 /**
- * 실제 적용되는 일일 무료 분석 제한량 계산 (관리자는 사실상 무제한)
+ * 사용자의 실제 일일 분석 한도 계산
  */
-export function getEffectiveDailyLimit(profile: UserProfile | null): number {
+export const getEffectiveDailyLimit = (profile: UserProfile | null): number => {
   if (isAdmin(profile)) return 9999;
-  if (isWhitelisted(profile)) return profile?.freeDailyLimit || 50; // 화이트리스트는 기본 50회 또는 설정값
-  return 3; // 일반 사용자는 하루 3회
-}
+  if (profile?.isFreeWhitelist || profile?.isExempt) return 100; // 화이트리스트는 넉넉히 제공
+  if (profile?.paidPlan === "pro") return 50;
+  return profile?.freeDailyLimit ?? 3;
+};
 
 /**
- * 심층 분석(Premium) 접근 권한 확인
+ * 심층 분석(Premium) 접근 권한
  */
-export function canAccessPremiumAnalysis(profile: UserProfile | null): boolean {
-  return isAdmin(profile) || isWhitelisted(profile) || profile?.subscriptionTier === "pro";
-}
+export const canAccessPremiumAnalysis = (profile: UserProfile | null): boolean => {
+  if (isAdmin(profile)) return true;
+  if (isWhitelisted(profile)) return true;
+  return profile?.paidPlan === "pro";
+};
 
 /**
- * 논문 비교 분석 접근 권한 확인
+ * 후속 질문(Follow-up) 접근 권한
  */
-export function canAccessCompareAnalysis(profile: UserProfile | null): boolean {
-  return isAdmin(profile) || isWhitelisted(profile) || profile?.subscriptionTier === "pro";
-}
+export const canAccessFollowup = (profile: UserProfile | null): boolean => {
+  if (isAdmin(profile)) return true;
+  if (isWhitelisted(profile)) return true;
+  return profile?.paidPlan === "pro" || (profile?.credits ?? 0) > 0;
+};
 
 /**
- * 후속 질문(Chat) 접근 권한 확인
+ * 비교 분석 접근 권한 (Whitelist 포함)
  */
-export function canAccessFollowup(profile: UserProfile | null): boolean {
-  return isAdmin(profile) || isWhitelisted(profile) || profile?.subscriptionTier === "pro";
-}
+export const canAccessCompareAnalysis = (profile: UserProfile | null): boolean => {
+  if (isAdmin(profile)) return true;
+  if (isWhitelisted(profile)) return true;
+  return profile?.paidPlan === "pro";
+};
 
 /**
- * PDF 다운로드/인쇄 접근 권한 확인 (정책 분리 대비)
+ * PDF 다운로드 접근 권한 (정책 분리용)
+ * 현재는 Pro 또는 화이트리스트 허용, 향후 여기서 쉽게 정책 변경 가능
  */
-export function canAccessExport(profile: UserProfile | null): boolean {
-  // 현재는 프리미엄 유저만 허용하되, 나중에 별도 함수로 제어 가능하도록 분리
-  return isAdmin(profile) || isWhitelisted(profile) || profile?.subscriptionTier === "pro";
-}
+export const canAccessPdfDownload = (profile: UserProfile | null): boolean => {
+  if (isAdmin(profile)) return true;
+  // 나중에 화이트리스트에게는 유료로 돌리고 싶다면 아래줄에서 isWhitelisted를 빼면 됨
+  if (isWhitelisted(profile)) return true;
+  return profile?.paidPlan === "pro";
+};
 
 /**
- * PPT 구조 생성 접근 권한 확인
+ * PPT 생성 접근 권한 (정책 분리용)
  */
-export function canAccessGeneratePpt(profile: UserProfile | null): boolean {
-  return isAdmin(profile) || isWhitelisted(profile) || profile?.subscriptionTier === "pro";
-}
+export const canAccessPptGeneration = (profile: UserProfile | null): boolean => {
+  if (isAdmin(profile)) return true;
+  if (isWhitelisted(profile)) return true;
+  return profile?.paidPlan === "pro";
+};
+
+/**
+ * 활성 사용자 여부 확인 (계정 정지 체크)
+ */
+export const isUserActive = (profile: UserProfile | null): boolean => {
+  if (isAdmin(profile)) return true;
+  return profile?.isActive !== false;
+};

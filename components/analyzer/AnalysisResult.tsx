@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronUp,
   BookMarked,
-  Printer,
   CheckCircle2,
   Loader2,
   Download,
@@ -20,19 +19,20 @@ import {
   Presentation,
   Share2,
   Users,
-  Calendar
+  Calendar,
+  XCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { PaperAnalysis, VariableItem, DomainKeyword } from "@/types/paper";
+import type { PaperAnalysis, VariableItem, DomainKeyword, AnalysisCategory } from "@/types/paper";
 import type { UserProfile } from "@/types/user";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { 
   canAccessPremiumAnalysis, 
   canAccessFollowup, 
-  canAccessCompareAnalysis,
-  canAccessExport,
+  canAccessPdfDownload,
+  canAccessPptGeneration,
   getEffectiveDailyLimit
 } from "@/lib/permissions";
 import LockedFeatureCard from "@/components/premium/LockedFeatureCard";
@@ -40,17 +40,9 @@ import LockedFeatureCard from "@/components/premium/LockedFeatureCard";
 interface AnalysisResultProps {
   data: PaperAnalysis;
   onSaved?: () => void;
-  isLibraryView?: boolean;
 }
 
 // ── 섹션 레이블 컬러 매핑 ──────────────────────────────────
-const VARIABLE_TYPE_LABEL: Record<VariableItem["type"], string> = {
-  independent: "독립변수",
-  dependent:   "종속변수",
-  control:     "통제변수",
-  moderating:  "조절변수",
-  other:       "기타",
-};
 const VARIABLE_TYPE_COLOR: Record<VariableItem["type"], string> = {
   independent: "bg-blue-100 text-blue-700",
   dependent:   "bg-emerald-100 text-emerald-700",
@@ -59,7 +51,7 @@ const VARIABLE_TYPE_COLOR: Record<VariableItem["type"], string> = {
   other:       "bg-slate-100 text-slate-500",
 };
 
-const KEYWORD_CATEGORY_COLOR: Record<DomainKeyword["category"], string> = {
+const KEYWORD_BG: Record<DomainKeyword["category"], string> = {
   "사업유형":      "bg-blue-50 text-blue-700 border-blue-200",
   "사업성지표":    "bg-emerald-50 text-emerald-700 border-emerald-200",
   "규제·인센티브": "bg-orange-50 text-orange-700 border-orange-200",
@@ -68,79 +60,36 @@ const KEYWORD_CATEGORY_COLOR: Record<DomainKeyword["category"], string> = {
   "기타":          "bg-slate-50 text-slate-500 border-slate-200",
 };
 
-// ── 보조 컴포넌트 ──────────────────────────────────────────
-function Section({
-  icon,
-  title,
-  children,
-  defaultOpen = true,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
+// ── 공통 UI 컴포넌트 ────────────────────────────────────────
+function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
   return (
-    <div className="card overflow-hidden bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-3 text-left"
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-xl text-blue-600">
-            {icon}
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
+    <div className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between group">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-slate-50 rounded-2xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">{icon}</div>
+          <h3 className="text-xl font-black text-slate-800 tracking-tight">{title}</h3>
         </div>
         {open ? <ChevronUp className="w-5 h-5 text-slate-300" /> : <ChevronDown className="w-5 h-5 text-slate-300" />}
       </button>
-
-      {open && <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-400">{children}</div>}
+      {open && <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-top-2 duration-400">{children}</div>}
     </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-2 md:gap-4 items-start">
-      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest pt-1">
-        {label}
-      </span>
-      <p className="text-sm text-slate-700 leading-relaxed font-medium">{value || "—"}</p>
-    </div>
-  );
-}
-
-function BulletList({ items }: { items: string[] }) {
-  if (!items || items.length === 0) return <p className="text-sm text-slate-400">—</p>;
-  return (
-    <ul className="space-y-4">
-      {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-4 group">
-          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-            {i + 1}
-          </div>
-          <span className="text-sm text-slate-700 leading-relaxed pt-0.5">{item}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────
-export default function AnalysisResult({ data: initialData, onSaved, isLibraryView = false }: AnalysisResultProps) {
+export default function AnalysisResult({ data: initialData, onSaved }: AnalysisResultProps) {
   const router = useRouter();
   const [data, setData] = useState<PaperAnalysis>(initialData);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [deepAnalysisStatus, setDeepAnalysisStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [actionStatus, setActionStatus] = useState<"idle" | "loading" | "done">("idle");
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from("profiles").select("*").eq("id", user.id).single();
         if (p) {
           setProfile({
             id: p.id,
@@ -152,7 +101,6 @@ export default function AnalysisResult({ data: initialData, onSaved, isLibraryVi
             paidPlan: p.paid_plan,
             credits: p.credits,
             isActive: p.is_active,
-            subscriptionTier: p.subscription_tier,
             createdAt: p.created_at,
           });
         }
@@ -162,275 +110,235 @@ export default function AnalysisResult({ data: initialData, onSaved, isLibraryVi
   }, []);
 
   const hasPremium = canAccessPremiumAnalysis(profile);
-  const hasFollowup = canAccessFollowup(profile);
-  const hasCompare = canAccessCompareAnalysis(profile);
-  const hasExport = canAccessExport(profile);
 
-  const handleDeepAnalysis = async () => {
+  // 분석 액션 (Deep 또는 PPT 등)
+  const runAnalysis = async (type: AnalysisCategory) => {
     if (!hasPremium) {
-      alert("심층 분석은 프리미엄 기능입니다.");
+      alert("프리미엄 전용 기능입니다.");
       return;
     }
-    setDeepAnalysisStatus("loading");
+    setActionStatus("loading");
     try {
       const formData = new FormData();
       formData.append("filename", data.filename);
-      formData.append("type", "premium");
+      formData.append("type", type === "ppt_outline" ? "premium" : type); // PPT는 일단 프리미엄 엔진 사용
       formData.append("storagePath", `papers/${data.id}.pdf`);
 
       const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       
-      setData(json.result);
-      setDeepAnalysisStatus("done");
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (type === "deep") {
+         setData(json.result);
+         window.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (type === "ppt_outline") {
+         alert("PPT 아웃라인 생성이 완료되었습니다. (추후 다운로드 연결)");
+      }
+      setActionStatus("done");
     } catch (err: any) {
       alert(err.message);
-      setDeepAnalysisStatus("idle");
-    }
-  };
-
-  const handleSave = async () => {
-    if (saveStatus === "saved") { router.push("/library"); return; }
-    setSaveStatus("saving");
-    try {
-      const res = await fetch("/api/papers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paper: data }),
-      });
-      if (!res.ok) throw new Error("저장 실패");
-      setSaveStatus("saved");
-      onSaved?.();
-    } catch {
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 2000);
+      setActionStatus("idle");
     }
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pb-24">
-      {/* ── 헤더 ── */}
-      <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
-        <div className="p-8 md:p-12">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="px-4 py-1.5 bg-blue-600/10 text-blue-700 rounded-full text-xs font-black tracking-widest uppercase">Analysis Report</div>
-            <div className="w-1 h-1 bg-slate-300 rounded-full" />
-            <div className="text-xs text-slate-400 font-bold">Generated by AI Engine</div>
-          </div>
-          
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-[1.15] mb-8 tracking-tight">
-            {data.title}
-          </h1>
-
-          <div className="flex flex-wrap items-center gap-6 text-sm">
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-50 rounded-2xl text-slate-600 font-bold">
-              <Users className="w-4 h-4 text-blue-500" />
-              {data.authors.join(", ")}
-            </div>
-            {data.year && (
-              <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-50 rounded-2xl text-slate-600 font-bold">
-                <Calendar className="w-4 h-4 text-emerald-500" />
-                {data.year} 발행
+    <div className="space-y-10 max-w-6xl mx-auto pb-32 pt-6">
+      {/* 헤더 섹션 */}
+      <div className="bg-white rounded-[48px] border border-slate-100 shadow-2xl shadow-slate-200/50 p-10 md:p-14 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] -translate-y-1/2 translate-x-1/2" />
+        <div className="relative">
+           <div className="flex items-center gap-3 mb-8">
+             <div className="px-5 py-2 bg-blue-600 text-white rounded-full text-[11px] font-black tracking-[0.2em] uppercase">Paper Insights</div>
+             <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
+             <div className="text-sm text-slate-400 font-black">Powered by AI Analysis Tier V3</div>
+           </div>
+           <h1 className="text-3xl md:text-5xl font-black text-slate-900 leading-[1.2] tracking-tight mb-8">{data.title}</h1>
+           <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-3 px-5 py-2.5 bg-slate-50 rounded-2xl text-slate-600 font-bold">
+                 <Users className="w-5 h-5 text-blue-500" /> {data.authors.join(", ")}
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="px-8 py-6 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between no-print">
-          <div className="flex items-center gap-6">
-            <button onClick={() => hasExport ? window.print() : alert("프리미엄 전용")} className="text-xs font-black text-slate-400 hover:text-blue-600 flex items-center gap-2 transition-all">
-              <Download className="w-4 h-4" /> LOCAL SAVE
-            </button>
-            <button className="text-xs font-black text-slate-400 hover:text-blue-600 flex items-center gap-2 transition-all">
-              <Share2 className="w-4 h-4" /> SHARE
-            </button>
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={saveStatus === "saving"}
-            className={cn(
-              "btn-primary rounded-2xl px-8 py-3.5 shadow-xl transition-all active:scale-95 text-sm font-black",
-              saveStatus === "saved" && "bg-emerald-600 shadow-emerald-200"
-            )}
-          >
-            {saveStatus === "saving" ? <Loader2 className="w-5 h-5 animate-spin" /> : saveStatus === "saved" ? <CheckCircle2 className="w-5 h-5" /> : <BookMarked className="w-5 h-5" />}
-            {saveStatus === "saving" ? "SAVING..." : saveStatus === "saved" ? "SAVED IN LIBRARY" : "ADD TO MY LIBRARY"}
-          </button>
+              {data.year && (
+                <div className="flex items-center gap-3 px-5 py-2.5 bg-slate-50 rounded-2xl text-slate-600 font-bold">
+                   <Calendar className="w-5 h-5 text-emerald-500" /> {data.year} 발행
+                </div>
+              )}
+           </div>
         </div>
       </div>
 
-      {/* ── 한 줄 요약 ── */}
-      <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 rounded-[40px] p-10 md:p-14 text-white shadow-2xl shadow-blue-300/40 relative overflow-hidden group">
-         <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/4 group-hover:bg-white/20 transition-all duration-700" />
-         <div className="relative">
-            <div className="flex items-center gap-3 mb-6">
-               <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md">
-                 <Zap className="w-6 h-6 text-amber-300 fill-amber-300" />
+      {/* 핵심 요약 카드 */}
+      <div className="bg-slate-900 rounded-[56px] p-12 md:p-16 text-white shadow-2xl shadow-slate-300 relative overflow-hidden group">
+         <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+         <div className="relative z-10">
+            <div className="flex items-center gap-4 mb-8">
+               <div className="p-3 bg-white/10 rounded-[20px] backdrop-blur-xl">
+                 <Lightbulb className="w-7 h-7 text-amber-300 fill-amber-300" />
                </div>
-               <span className="text-xs font-black tracking-[0.3em] text-blue-100 uppercase">Core Insight</span>
+               <span className="text-xs font-black tracking-[0.4em] text-blue-400 uppercase">Executive Summary</span>
             </div>
-            <h2 className="text-2xl md:text-4xl font-black leading-[1.3] md:leading-[1.4] tracking-tight">
-               "{data.introduction.oneLineSummary || "논문의 핵심을 정밀하게 추출하고 있습니다."}"
+            <h2 className="text-2xl md:text-5xl font-black leading-[1.4] tracking-tight mb-10 italic">
+               "{data.introduction.oneLineSummary || "논문의 핵심 연구 가치를 정밀 추출 중입니다."}"
             </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-10 border-t border-white/10">
+               <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Research Problem</h4>
+                  <p className="text-lg font-bold text-slate-100 leading-relaxed">{data.introduction.problemStatement}</p>
+               </div>
+               <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Core Findings</h4>
+                  <ul className="space-y-4">
+                     {data.conclusion.keyFindings.slice(0, 3).map((f, i) => (
+                        <li key={i} className="flex gap-4 group/item">
+                           <span className="text-blue-500 font-black">0{i+1}</span>
+                           <span className="text-sm font-medium text-slate-300 group-hover/item:text-white transition-colors leading-relaxed">{f}</span>
+                        </li>
+                     ))}
+                  </ul>
+               </div>
+            </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-        <div className="space-y-8">
-          <Section icon={<BookOpen className="w-5 h-5" />} title="논문 핵심 요약">
-            <div className="space-y-10">
-              <div className="bg-blue-50/50 p-8 rounded-[32px] border border-blue-100">
-                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Research Problem</h4>
-                <p className="text-lg font-bold text-slate-800 leading-relaxed italic">
-                  {data.introduction.problemStatement}
-                </p>
+      {/* 분석 본문 상세 */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10 items-start">
+        <div className="space-y-10">
+           <Section icon={<Tag className="w-6 h-6" />} title="도메인 핵심 키워드 (Top 5)">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                 {data.domainKeywords.slice(0, 5).map((kw, i) => (
+                    <div key={i} className={cn("p-6 rounded-[28px] border-2 transition-all hover:scale-105", KEYWORD_BG[kw.category])}>
+                       <span className="text-[10px] font-black uppercase opacity-60 block mb-1">{kw.category}</span>
+                       <span className="text-lg font-black tracking-tight">#{kw.term}</span>
+                    </div>
+                 ))}
               </div>
-              <div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 px-1">Main Findings (Top 3)</h4>
-                <BulletList items={data.conclusion.keyFindings.slice(0, 3)} />
-              </div>
-            </div>
-          </Section>
+           </Section>
 
-          <Section icon={<Tag className="w-5 h-5" />} title="연구 키워드 (Top 5)">
-            <div className="flex flex-wrap gap-3">
-              {data.domainKeywords.slice(0, 5).map((kw, i) => (
-                <span key={i} className={cn("px-6 py-3 rounded-2xl border-2 text-sm font-black transition-all hover:translate-y-[-2px] hover:shadow-lg", KEYWORD_CATEGORY_COLOR[kw.category])}>
-                  #{kw.term}
-                </span>
-              ))}
-            </div>
-          </Section>
+           {(!hasPremium || actionStatus !== "done") && (
+             <div className="pt-4 no-print">
+                <LockedFeatureCard 
+                  title="이 논문의 진짜 가치를 발견하세요"
+                  description="실무 적용점 도출부터 방법론 검증, PPT 아웃라인 생성까지. 전문가를 위한 프리미엄 분석 도구를 지금 열 수 있습니다."
+                  benefits={[
+                    "정밀 연구 방법론 및 5단계 변수 관계도 매핑",
+                    "정책적/실무적 구체화 시사점 (Premium 전용)",
+                    "10초 만에 끝내는 발표용 PPT 구조 및 내용 생성",
+                    "관련 논문과의 비교 분석 및 챗봇 질문 무제한"
+                  ]}
+                  ctaLabel={actionStatus === "loading" ? "분석 엔진 가동 중..." : "프리미엄 심층 분석 시작하기"}
+                  onCtaClick={() => runAnalysis("deep")}
+                />
+             </div>
+           )}
 
-          {(!hasPremium || deepAnalysisStatus === "idle") && (
-            <div className="no-print pt-4">
-              <LockedFeatureCard 
-                title="이 논문, 여기서 끝내기 아깝습니다"
-                description="실무 적용점 도출부터 방법론 검증, 비교 분석, 후속 질문까지. 논문을 완벽하게 마스터하는 프리미엄 도구를 경험해 보세요."
-                benefits={[
-                  "상세 연구방법론 및 모든 변수 관계도 추출",
-                  "정책적·실무적 구체화 시사점 (Premium Only)",
-                  "관련 논문과의 비교 분석 및 챗봇 질문 무제한",
-                  "10초 만에 끝내는 발표용 PPT 구조 생성"
-                ]}
-                ctaLabel={deepAnalysisStatus === "loading" ? "ANALYZING DEEP..." : "START DEEP ANALYSIS"}
-                onCtaClick={handleDeepAnalysis}
-              />
-            </div>
-          )}
-
-          {(hasPremium && (data.methodology?.researchType || deepAnalysisStatus === "done")) && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-               <Section icon={<FlaskConical className="w-5 h-5" />} title="연구 방법론 & 변수 구조">
-                  <div className="space-y-8">
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                           <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Method Type</p>
-                           <p className="text-lg font-black text-slate-800">{data.methodology?.researchType}</p>
-                        </div>
-                        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                           <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Data Source</p>
-                           <p className="text-lg font-black text-slate-800 truncate">{data.methodology?.dataSource}</p>
-                        </div>
-                     </div>
-                     <div className="overflow-hidden rounded-[32px] border border-slate-100">
-                        <table className="w-full text-sm">
-                           <thead className="bg-slate-50/80">
-                              <tr>
-                                 <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-tighter">Variable</th>
-                                 <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-tighter">Type</th>
-                              </tr>
-                           </thead>
-                           <tbody className="divide-y divide-slate-100">
-                              {data.methodology.variables.map((v, i) => (
-                                 <tr key={i} className="bg-white hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-6 py-5 font-bold text-slate-800">{v.name}</td>
-                                    <td className="px-6 py-5">
-                                       <span className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight", VARIABLE_TYPE_COLOR[v.type])}>
-                                          {VARIABLE_TYPE_LABEL[v.type]}
-                                       </span>
-                                    </td>
-                                 </tr>
-                              ))}
-                           </tbody>
-                        </table>
-                     </div>
-                  </div>
-               </Section>
-               <Section icon={<Zap className="w-5 h-5" />} title="전문적 시사점 & 한계">
-                  <div className="space-y-8">
-                     <div>
-                        <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-6">Expert Implications</h4>
-                        <BulletList items={data.conclusion.implications} />
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
-                        <div className="p-8 bg-slate-50 rounded-[32px] border border-slate-100/50">
-                           <h5 className="text-[10px] font-black text-slate-400 mb-4 uppercase">Limitations</h5>
-                           <p className="text-sm text-slate-600 leading-relaxed font-medium">{data.conclusion.limitations}</p>
-                        </div>
-                        <div className="p-8 bg-blue-50/50 rounded-[32px] border border-blue-100/50">
-                           <h5 className="text-[10px] font-black text-blue-400 mb-4 uppercase">Future Research</h5>
-                           <p className="text-sm text-slate-700 leading-relaxed font-bold">{data.conclusion.futureResearch}</p>
-                        </div>
-                     </div>
-                  </div>
-               </Section>
-            </div>
-          )}
+           {(hasPremium && (data.methodology?.researchType || actionStatus === "done")) && (
+             <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+                <Section icon={<FlaskConical className="w-6 h-6" />} title="정밀 연구 방법론 & 변수 관계">
+                   <div className="grid grid-cols-2 gap-6 mb-8">
+                      <div className="p-8 bg-slate-50 rounded-[36px] border border-slate-100">
+                         <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Research Strategy</p>
+                         <p className="text-xl font-black text-slate-800">{data.methodology?.researchType}</p>
+                      </div>
+                      <div className="p-8 bg-slate-50 rounded-[36px] border border-slate-100">
+                         <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Data Integrity</p>
+                         <p className="text-xl font-black text-slate-800">{data.methodology?.dataSource}</p>
+                      </div>
+                   </div>
+                   <div className="overflow-hidden rounded-[36px] border border-slate-100 p-2 bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50/50">
+                          <tr>
+                            <th className="px-8 py-5 text-left font-black text-slate-500 uppercase tracking-tighter">Research Variable</th>
+                            <th className="px-8 py-5 text-left font-black text-slate-500 uppercase tracking-tighter">Classification</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {data.methodology.variables.map((v, i) => (
+                            <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-8 py-6 font-bold text-slate-800">{v.name}</td>
+                              <td className="px-8 py-6">
+                                <span className={cn("px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tight", VARIABLE_TYPE_COLOR[v.type])}>
+                                   {v.type}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                   </div>
+                </Section>
+                <Section icon={<Zap className="w-6 h-6" />} title="전문적 시사점 & 한계점">
+                   <div className="space-y-10 p-4">
+                      <div className="space-y-6">
+                         <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest pl-1">Strategic Implications</h4>
+                         {data.conclusion.implications.map((imp, i) => (
+                            <div key={i} className="flex gap-6 p-6 bg-blue-50/30 rounded-[32px] border border-blue-100/30">
+                               <div className="w-10 h-10 rounded-2xl bg-white text-blue-600 font-black flex items-center justify-center shrink-0 shadow-sm">{i+1}</div>
+                               <p className="text-sm font-bold text-slate-700 leading-relaxed pt-2">{imp}</p>
+                            </div>
+                         ))}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-10 border-t border-slate-100">
+                         <div className="p-10 bg-slate-50 rounded-[44px] border border-slate-100">
+                            <h5 className="text-[10px] font-black text-slate-400 mb-4 uppercase italic">Critical Limitations</h5>
+                            <p className="text-sm text-slate-600 leading-relaxed font-black">{data.conclusion.limitations}</p>
+                         </div>
+                         <div className="p-10 bg-slate-900 rounded-[44px] text-white">
+                            <h5 className="text-[10px] font-black text-blue-400 mb-4 uppercase">Future Scope</h5>
+                            <p className="text-sm text-slate-200 leading-relaxed font-black">{data.conclusion.futureResearch}</p>
+                         </div>
+                      </div>
+                   </div>
+                </Section>
+             </div>
+           )}
         </div>
 
-        <div className="space-y-6 sticky top-12 no-print">
-          <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-2xl shadow-slate-200/40">
-            <h5 className="text-sm font-black text-slate-900 mb-6 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400 fill-amber-400" /> NEXT STEPS
-            </h5>
-            <div className="space-y-3">
-              <QuickMenuButton icon={<MessageSquare className="w-5 h-5" />} label="챗봇에게 질문하기" locked={!hasFollowup} onClick={() => router.push(`/library/${data.id}/followup`)} />
-              <QuickMenuButton icon={<FileText className="w-5 h-5" />} label="비교 분석 리포트" locked={!hasCompare} onClick={() => alert("Coming Soon")} />
-              <QuickMenuButton icon={<Presentation className="w-5 h-5" />} label="발표용 PPT 생성" locked={!hasPremium} onClick={() => alert("Coming Soon")} />
-            </div>
-          </div>
-          
-          <div className="bg-slate-900 rounded-[40px] p-8 text-white shadow-2xl shadow-slate-300 overflow-hidden relative group">
-             <div className="absolute inset-0 bg-blue-600/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-             <div className="relative">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Member Status</p>
-                <div className="flex items-center gap-2 mb-8">
-                   <div className={cn("w-2 h-2 rounded-full", profile?.isFreeWhitelist ? "bg-emerald-400 animate-pulse" : "bg-blue-400 ")} />
-                   <p className="text-sm font-black text-slate-100 uppercase tracking-tighter">
-                     {profile?.isFreeWhitelist ? "Whitelist Member" : "Standard Tier"}
-                   </p>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-[11px] font-black uppercase">
-                     <span className="text-slate-500">Daily Balance</span>
-                     <span className="text-blue-400">{profile ? getEffectiveDailyLimit(profile) : 0} ANALYSES LEFT</span>
-                  </div>
-                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                     <div className="bg-blue-500 h-full w-[40%] shadow-[0_0_20px_rgba(59,130,246,0.5)]" />
-                  </div>
-                  <p className="text-[10px] text-slate-500 font-bold leading-tight">관리자 권한 또는 플랜에 따라 혜택이 상이합니다.</p>
-                </div>
-             </div>
-          </div>
+        {/* 사이드바 액션 */}
+        <div className="space-y-6 sticky top-10 no-print">
+           <div className="bg-white p-10 rounded-[48px] border border-slate-100 shadow-2xl shadow-slate-200/40">
+              <h5 className="text-sm font-black text-slate-900 mb-8 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-400 fill-amber-400" /> PRODUCTIVITY Hub
+              </h5>
+              <div className="space-y-4">
+                 <SidebarButton icon={<MessageSquare className="w-5 h-5" />} label="후속 질문 & 답변" locked={!canAccessFollowup(profile)} onClick={() => router.push(`/library/${data.id}/chat`)} />
+                 <SidebarButton icon={<Presentation className="w-5 h-5" />} label="발표용 PPT 생성" locked={!canAccessPptGeneration(profile)} onClick={() => runAnalysis("ppt_outline")} />
+                 <SidebarButton icon={<Download className="w-5 h-5" />} label="리포트 PDF 저장" locked={!canAccessPdfDownload(profile)} onClick={() => window.print()} />
+              </div>
+           </div>
+
+           <div className="bg-slate-900 rounded-[48px] p-10 text-white shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/20 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-1000" />
+              <div className="relative z-10">
+                 <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">My Status</p>
+                 <div className="flex items-center gap-2 mb-8">
+                    <div className={cn("w-2 h-2 rounded-full", profile?.isFreeWhitelist ? "bg-emerald-400" : "bg-blue-500")} />
+                    <span className="text-sm font-black tracking-tight uppercase">{profile?.isFreeWhitelist ? "VIP Whitelist" : "Standard Tier"}</span>
+                 </div>
+                 <div className="space-y-4">
+                    <div className="flex justify-between items-end">
+                       <p className="text-2xl font-black tracking-tighter">{getEffectiveDailyLimit(profile)}</p>
+                       <p className="text-[10px] font-black text-slate-500 uppercase">Daily Analyses</p>
+                    </div>
+                    <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                       <div className="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)] w-[30%]" />
+                    </div>
+                 </div>
+              </div>
+           </div>
         </div>
       </div>
     </div>
   );
 }
 
-function QuickMenuButton({ icon, label, locked, onClick }: { icon: React.ReactNode; label: string; locked?: boolean; onClick?: () => void }) {
+function SidebarButton({ icon, label, locked, onClick }: { icon: React.ReactNode; label: string; locked: boolean; onClick: () => void }) {
   return (
-    <button onClick={locked ? undefined : onClick} className={cn("group w-full flex items-center justify-between p-4 rounded-2xl text-sm font-black transition-all border-2", locked ? "opacity-40 grayscale bg-slate-50 border-slate-100 cursor-not-allowed" : "bg-white hover:bg-blue-600 text-slate-800 hover:text-white border-slate-50 hover:border-blue-600 shadow-sm hover:shadow-blue-200")}>
-      <div className="flex items-center gap-4">
-        <div className={cn("p-2 rounded-xl transition-colors", locked ? "bg-slate-100" : "bg-blue-50 group-hover:bg-blue-500")}>
-           {icon}
-        </div>
-        {label}
-      </div>
-      {locked ? <Lock className="w-4 h-4 text-slate-300" /> : <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />}
+    <button onClick={locked ? undefined : onClick} className={cn("group w-full flex items-center justify-between p-5 rounded-[24px] text-sm font-black transition-all border-2", locked ? "opacity-30 grayscale cursor-not-allowed border-slate-50" : "bg-white border-slate-50 hover:border-blue-600 hover:bg-blue-600 hover:text-white shadow-sm")}>
+       <div className="flex items-center gap-4">
+          <div className={cn("p-2.5 rounded-2xl transition-all", locked ? "bg-slate-100" : "bg-blue-50 group-hover:bg-blue-500 group-hover:text-white")}>{icon}</div>
+          {label}
+       </div>
+       <ArrowRight className={cn("w-4 h-4 transition-all opacity-0", !locked && "group-hover:opacity-100 group-hover:translate-x-1")} />
     </button>
   );
 }
