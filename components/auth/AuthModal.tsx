@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, Mail, Lock, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
 interface AuthModalProps {
@@ -13,6 +14,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
@@ -20,6 +22,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isLogin && !agreed) {
+      setMessage({ type: "error", text: "개인정보 수집 및 이용에 동의해야 합니다." });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
@@ -36,7 +44,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         setLoading(false);
       } else {
         onClose();
-        window.location.reload(); // 세션 반영을 위해 리로드
+        window.location.reload();
       }
     }
   };
@@ -50,13 +58,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 pointer-events-auto"
         onClick={onClose}
       />
       
-      {/* Modal Container */}
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 z-[10000] max-h-[calc(100vh-32px)] flex flex-col overflow-hidden">
         <button
           onClick={onClose}
@@ -71,14 +77,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               {isLogin ? "환영합니다!" : "반가워요!"}
             </h2>
             <p className="text-slate-500">
-              {isLogin ? "계정에 로그인하여 논문을 분석해 보세요" : "회원가입하고 나만의 논문 라이브러리를 만들어 보세요"}
+              {isLogin ? "계정에 로그인해 보세요" : "회원가입하고 논문 분석을 시작하세요"}
             </p>
           </div>
 
           <div className="space-y-4">
             <button
               onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-slate-700"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-bold text-slate-700 shadow-sm"
             >
               <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
               Google로 계속하기
@@ -89,39 +95,67 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <div className="w-full border-t border-slate-100"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-400">또는</span>
+                <span className="px-2 bg-white text-slate-400 font-medium">또는 이메일로 {isLogin ? '로그인' : '가입'}</span>
               </div>
             </div>
 
             <form onSubmit={handleAuth} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">이메일</label>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">이메일 계정</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
+                  className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-slate-50/50"
                   placeholder="example@email.com"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">비밀번호</label>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">비밀번호</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
+                  className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-slate-50/50"
                   placeholder="••••••••"
                   required
                 />
               </div>
+
+              {!isLogin && (
+                <div className="flex items-start gap-3 py-2 px-1">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="privacy"
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(e) => setAgreed(e.target.checked)}
+                      className="w-5 h-5 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
+                    />
+                  </div>
+                  <label htmlFor="privacy" className="text-sm font-medium text-slate-600 leading-tight cursor-pointer">
+                    개인정보 수집 및 이용에 동의합니다. (필수)
+                  </label>
+                </div>
+              )}
+
+              {message && (
+                <div className={cn(
+                  "p-4 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-1",
+                  message.type === "error" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+                )}>
+                  {message.text}
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:active:scale-100 mt-2"
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/25 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
               >
-                {loading ? "처리 중..." : (isLogin ? "로그인" : "회원가입")}
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                {isLogin ? "로그인" : "회원가입 완료"}
               </button>
             </form>
           </div>
@@ -129,7 +163,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <p className="mt-8 text-center text-slate-500 font-medium">
             {isLogin ? "계정이 없으신가요?" : "이미 계정이 있으신가요?"}
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setMessage(null);
+              }}
               className="ml-2 text-blue-600 font-bold hover:underline"
             >
               {isLogin ? "회원가입" : "로그인"}

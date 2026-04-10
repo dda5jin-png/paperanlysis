@@ -74,10 +74,11 @@ export default function Header() {
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-600">
                   <User className="h-4 w-4" />
                 </div>
-                <span className="text-sm font-bold text-slate-700 truncate max-w-[100px]">
-                  {session.user.email?.split("@")[0]}님
+                <span className="text-[11px] font-black text-slate-900 truncate max-w-[140px]">
+                  <span className="text-blue-600 mr-1">{session.user.email?.split("@")[0]}</span>
+                  님 이용 중
                 </span>
-                <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform", isProfileOpen && "rotate-180")} />
+                <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", isProfileOpen && "rotate-180")} />
               </button>
 
               {isProfileOpen && (
