@@ -62,13 +62,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100000] overflow-y-auto bg-slate-900/60 backdrop-blur-sm px-4 pt-10 pb-10 flex justify-center items-start">
+    <div className="fixed inset-0 z-[100000] overflow-y-auto bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-start sm:justify-center px-4 py-10 sm:py-20 transition-all">
       <div 
         className="fixed inset-0 pointer-events-auto"
         onClick={onClose}
       />
       
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl z-[100001] animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md bg-white rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] z-[100001] animate-in zoom-in-95 duration-200 my-auto border border-white/20">
         <button
           onClick={onClose}
           className="absolute right-6 top-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-[100002]"
