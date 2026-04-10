@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 import type { PaperAnalysis } from "@/types/paper";
 
 export const runtime = "nodejs";
 
 // ── GET /api/papers ─ 사용자별 논문 목록 ──────────────────────────
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = await createClient();
   
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -33,7 +32,7 @@ export async function GET() {
 
 // ── POST /api/papers ─ 논문 분석 결과 저장 ───────────────────────
 export async function POST(req: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = await createClient();
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
