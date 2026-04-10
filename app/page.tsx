@@ -10,6 +10,7 @@ import PdfUploader from "@/components/ui/PdfUploader";
 import AnalysisProgress from "@/components/ui/AnalysisProgress";
 import AnalysisResult from "@/components/analyzer/AnalysisResult";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 import {
   MODELS,
   DEFAULT_MODEL_ID,
@@ -88,18 +89,37 @@ export default function HomePage() {
     const modelLabel  = modelConfig?.name ?? state.selectedModel;
 
     try {
-      updateState({ status: "uploading", progress: 10, message: "파일을 서버로 전송하는 중…" });
+      updateState({
+        status: "uploading",
+        progress: 10,
+        message: "파일을 저장소(Supabase)에 업로드하는 중…",
+        lastFile: file,
+      });
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("model", state.selectedModel);
+      // 1. Supabase Storage에 업로드 (4.5MB 제한 우회)
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("papers")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw new Error(`저장소 업로드 실패: ${uploadError.message}`);
+      }
 
       updateState({
         status: "parsing",
         progress: 30,
-        message: "PDF에서 텍스트를 추출하는 중…",
-        lastFile: file,
+        message: "저장된 파일에서 텍스트를 분석하는 중…",
       });
+
+      // 2. API 호출 (파일 대신 주소 전달)
+      const formData = new FormData();
+      formData.append("storagePath", filePath);
+      formData.append("model", state.selectedModel);
+      formData.append("filename", file.name); // 원본 파일명 전달
 
       const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
 
