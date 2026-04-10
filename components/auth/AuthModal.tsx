@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Mail, Lock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +12,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,7 +20,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
+  if (!isOpen || !mounted) return null;
 
   const getErrorMessage = (error: any) => {
     const msg = error.message;
@@ -61,17 +78,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-[100000] overflow-y-auto bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-start px-4 pt-12 sm:pt-24 pb-20 transition-all">
+  return createPortal(
+    <div className="fixed inset-0 z-[200000] overflow-y-auto bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-start px-4 pt-12 sm:pt-24 pb-20 transition-all">
       <div 
         className="fixed inset-0 pointer-events-auto"
         onClick={onClose}
       />
       
-      <div className="relative w-full max-w-md bg-white rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] z-[100001] animate-in zoom-in-95 duration-200 border border-white/20">
+      <div className="relative w-full max-w-md bg-white rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] z-[200001] animate-in zoom-in-95 duration-200 border border-white/20">
         <button
           onClick={onClose}
-          className="absolute right-6 top-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-[100002]"
+          className="absolute right-6 top-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-[200002]"
         >
           <X className="w-5 h-5 text-slate-400" />
         </button>
@@ -175,6 +192,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
