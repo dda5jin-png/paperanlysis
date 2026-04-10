@@ -53,8 +53,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl z-[10000] max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm px-4 py-8 flex justify-center items-start sm:items-center">
+      <div 
+        className="fixed inset-0 pointer-events-auto"
+        onClick={onClose}
+      />
+      
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl z-[10000] my-auto animate-in zoom-in-95 duration-200">
         <button
           onClick={onClose}
           className="absolute right-6 top-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-[10001]"
@@ -62,7 +67,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <X className="w-5 h-5 text-slate-400" />
         </button>
 
-        <div className="p-8 sm:p-10 overflow-y-auto">
+        <div className="p-8 sm:p-10">
           {/* Header */}
           <div className="mb-8 text-center pt-2">
             <h2 className="text-3xl font-black text-slate-900 mb-2">
