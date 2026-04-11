@@ -9,17 +9,16 @@ export async function GET() {
   const supabase = await createClient();
   
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    // 만약 로그인하지 않은 경우, 빈 목록 반환 (보안상 필수는 아니지만 UX용)
-    if (!session) {
-      return NextResponse.json({ success: true, papers: [] });
+    if (!user) {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
     const { data, error } = await supabase
       .from("papers")
       .select("*")
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -35,8 +34,8 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
       .from("papers")
       .select("id")
       .eq("file_hash", paper.fileHash)
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .maybeSingle();
 
     if (existingPaper) {
@@ -66,7 +65,7 @@ export async function POST(req: NextRequest) {
       .from("papers")
       .upsert({
         id: paperId,
-        user_id: session.user.id,
+        user_id: user.id,
         filename: paper.filename,
         title: paper.title,
         authors: paper.authors,
@@ -93,7 +92,7 @@ export async function POST(req: NextRequest) {
       .from("analyses")
       .upsert({
         paper_id: paperId,
-        user_id: session.user.id,
+        user_id: user.id,
         type: analysisType,
         content: paper, // 전체 객체를 캐시로 저장
       }, { onConflict: "paper_id, user_id, type" });

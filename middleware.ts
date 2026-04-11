@@ -17,37 +17,30 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
+          // 1. 요청 객체의 쿠키 업데이트 (다음 서버 컴포넌트들을 위해)
+          request.cookies.set({ name, value, ...options });
+
+          // 2. 새 응답 객체 생성 (업데이트된 요청 헤더 반영)
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
+
+          // 3. 현재까지의 모든 요청 쿠키들을 응답 쿠키로 이월 (누적 처리)
+          request.cookies.getAll().forEach((c) => {
+            response.cookies.set(c);
           });
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: "",
-            ...options,
-          });
+          request.cookies.set({ name, value: "", ...options });
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           });
-          response.cookies.set({
-            name,
-            value: "",
-            ...options,
+          request.cookies.getAll().forEach((c) => {
+            response.cookies.set(c);
           });
         },
       },
