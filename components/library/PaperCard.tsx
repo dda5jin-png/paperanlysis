@@ -79,7 +79,7 @@ export default function PaperCard({ paper, selected, onToggle, onDelete }: Paper
       )}
 
       {/* 분석 기법 뱃지 */}
-      {paper.methodology?.analysisMethod?.length > 0 && (
+      {paper.methodology?.analysisMethod && paper.methodology.analysisMethod.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
           {paper.methodology.analysisMethod.slice(0, 3).map((m, i) => (
             <span key={i} className="badge bg-purple-50 text-purple-600 border border-purple-100 text-[10px]">
