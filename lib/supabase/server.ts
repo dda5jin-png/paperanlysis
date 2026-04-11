@@ -32,3 +32,30 @@ export async function createClient() {
     }
   );
 }
+
+/**
+ * 관리자용 클라이언트 - RLS를 우방하고 모든 데이터를 조회하거나 수정할 때 사용 (Service Role Key 필요)
+ */
+export async function createAdminClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // Secret Key 사용
+    {
+      cookies: {
+        get(name: string) {
+          return cookies().get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookies().set({ name, value, ...options });
+          } catch (error) {}
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookies().set({ name, value: "", ...options });
+          } catch (error) {}
+        },
+      },
+    }
+  );
+}

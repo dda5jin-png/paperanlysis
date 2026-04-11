@@ -12,8 +12,8 @@ export async function GET(
   const id = params.id;
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
@@ -21,7 +21,7 @@ export async function GET(
       .from("papers")
       .select("*")
       .eq("id", id)
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .single();
 
     if (error) throw error;
@@ -44,8 +44,8 @@ export async function DELETE(
   const id = params.id;
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
@@ -53,7 +53,7 @@ export async function DELETE(
       .from("papers")
       .delete()
       .eq("id", id)
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     if (error) throw error;
 

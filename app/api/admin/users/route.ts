@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -18,8 +18,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // 2. 모든 사용자 프로필 조회 (신규 SaaS 필드 포함)
-  const { data: users, error } = await supabase
+  // 2. 모든 사용자 프로필 조회 (Admin Client 사용)
+  const adminClient = await createAdminClient();
+  const { data: users, error } = await adminClient
     .from("profiles")
     .select(`
       id, 
