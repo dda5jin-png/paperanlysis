@@ -1,22 +1,22 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { AnalysisStatus } from "@/types/paper";
+import type { AnalysisState } from "@/types/paper";
 
 interface AnalysisProgressProps {
-  status: AnalysisStatus;
+  status: AnalysisState["status"];
   progress: number;
   message: string;
 }
 
-const STEP_LABELS: { key: AnalysisStatus; label: string }[] = [
+const STEP_LABELS: { key: AnalysisState["status"]; label: string }[] = [
   { key: "uploading", label: "파일 전송" },
   { key: "parsing",   label: "텍스트 추출" },
   { key: "analyzing", label: "AI 구조 분석" },
   { key: "done",      label: "완료" },
 ];
 
-const STATUS_ORDER: AnalysisStatus[] = [
+const STATUS_ORDER: AnalysisState["status"][] = [
   "uploading",
   "parsing",
   "analyzing",
