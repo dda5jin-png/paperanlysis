@@ -54,8 +54,23 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (createError) {
-      console.error(">>> [Error] 프로필 생성 실패:", createError);
-      return NextResponse.json({ error: "프로필 생성에 실패했습니다. 관리자에게 문의하세요." }, { status: 500 });
+      console.error(">>> [Error] 프로필 생성 실패 details:", {
+        message: createError.message,
+        details: createError.details,
+        hint: createError.hint,
+        code: createError.code
+      });
+      // 힌트: Supabase SQL Editor에서 sql/fix_profiles_and_rls.sql 을 실행하면 해결됩니다.
+      return NextResponse.json({
+        error: "프로필을 확인할 수 없습니다. Supabase 설정이 필요합니다. (sql/fix_profiles_and_rls.sql 실행 필요)",
+        errorCode: "PROFILE_SETUP_REQUIRED",
+        hint: "Supabase Dashboard > SQL Editor에서 sql/fix_profiles_and_rls.sql 파일을 실행해 주세요.",
+        debug: process.env.NODE_ENV === "development" ? {
+          supabaseError: createError,
+          userId: user.id,
+          userEmail: user.email,
+        } : undefined
+      }, { status: 500 });
     }
     profileRaw = newProfile;
   }

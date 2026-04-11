@@ -53,7 +53,8 @@ export interface AnalysisState {
   progress: number;
   message: string;
   selectedModel: string;
-  lastFile?: File; 
+  lastFile?: File;
   result?: PaperAnalysis;
   error?: string;
+  errorCode?: "PROFILE_SETUP_REQUIRED" | "LIMIT_EXCEEDED" | "AI_ERROR" | "STORAGE_ERROR" | string;
 }

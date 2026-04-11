@@ -214,12 +214,25 @@ export default function HomePage() {
                       <p className="text-sm text-red-700/80">{state.error || "알 수 없는 오류가 발생했습니다."}</p>
                     </div>
                   </div>
-                  
+
+                  {/* 에러 코드별 안내 */}
+                  {state.errorCode === "PROFILE_SETUP_REQUIRED" && (
+                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800 font-medium">
+                      🔧 <strong>Supabase 설정 필요:</strong> 처음 회원가입한 계정입니다.
+                      관리자가 Supabase SQL Editor에서 <code className="bg-amber-100 px-1 rounded">sql/fix_profiles_and_rls.sql</code> 파일을 실행하면 해결됩니다.
+                    </div>
+                  )}
+                  {state.errorCode === "LIMIT_EXCEEDED" && (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-sm text-blue-800 font-medium">
+                      📊 오늘의 무료 분석 한도를 사용했습니다. Pro 플랜으로 하루 50회까지 분석할 수 있어요.
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-3">
                     <button onClick={handleReset} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-red-200 text-red-700 font-bold rounded-xl hover:bg-red-100/50 transition-all active:scale-95">
                       <RotateCcw className="h-4 w-4" /> 처음부터 다시 시도
                     </button>
-                    {state.lastFile && state.selectedModel !== "gemini-2.0-flash" && (
+                    {state.lastFile && state.selectedModel !== "gemini-2.0-flash" && state.errorCode !== "LIMIT_EXCEEDED" && (
                       <button onClick={handleRetryWithGemini} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-md active:scale-95">
                         <Sparkles className="h-4 w-4" /> Gemini 2.0 Flash로 즉시 재시도
                       </button>

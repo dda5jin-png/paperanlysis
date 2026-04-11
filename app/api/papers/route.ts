@@ -86,18 +86,26 @@ export async function POST(req: NextRequest) {
     // ── 3. 분석 결과 상세 저장 (analyses 테이블 캐싱) ──────
     // 분석 내용 중 심화 데이터(변수 테이블 등)가 포함되어 있는지 확인하여 타입 결정
     const isPremium = !!paper.methodology?.variables?.length;
-    const analysisType = isPremium ? "premium" : "basic";
+    const analysisType: "summary" | "deep" = isPremium ? "deep" : "summary";
 
+    // analyses 테이블 스키마(saas_full_schema.sql)에 맞게 수정
+    // input_hash: fileHash 기반으로 생성, result_json: 전체 결과 저장
     const { error: analysisError } = await supabase
       .from("analyses")
       .upsert({
         paper_id: paperId,
         user_id: user.id,
+        analysis_type: analysisType,
+        input_hash: paper.inputHash || paper.fileHash || paperId,
+        prompt_version: paper.modelId || "v1",
+        result_json: paper, // 전체 객체를 캐시로 저장
+        status: "completed",
+        // 하위 호환용 컬럼 (SQL fix에서 추가된 경우)
         type: analysisType,
-        content: paper, // 전체 객체를 캐시로 저장
-      }, { onConflict: "paper_id, user_id, type" });
+        content: paper,
+      }, { onConflict: "input_hash" });
 
-    if (analysisError) console.error("분석 캐시 저장 실패:", analysisError);
+    if (analysisError) console.error("분석 캐시 저장 실패 (무시 가능):", analysisError.message);
 
     return NextResponse.json({ success: true, id: paperId });
   } catch (e: any) {
