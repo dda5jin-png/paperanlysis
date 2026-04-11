@@ -21,7 +21,7 @@ export default function PaperDetailPage() {
     const fetchPaper = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/papers/${id}`);
+        const res = await fetch(`/api/papers/${id}`, { credentials: "include" });
         const json = await res.json();
 
         if (!res.ok) throw new Error(json.error || "논문을 불러오지 못했습니다.");

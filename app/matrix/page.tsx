@@ -75,7 +75,7 @@ function MatrixPageInner() {
     const ids = idsParam.split(",").filter(Boolean);
     if (ids.length === 0) { setLoading(false); return; }
 
-    fetch("/api/papers")
+    fetch("/api/papers", { credentials: "include" })
       .then((r) => r.json())
       .then((json) => {
         const all: PaperAnalysis[] = json.papers ?? [];
@@ -93,6 +93,7 @@ function MatrixPageInner() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ papers, modelId }),
+        credentials: "include"
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);

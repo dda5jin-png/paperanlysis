@@ -15,6 +15,7 @@ export interface DomainKeyword {
 export interface Introduction {
   problemStatement: string;
   oneLineSummary: string; // 신규: 무료 사용자용 한 줄 요약
+  researchQuestion?: string; // 매트릭스용 추가
 }
 
 export interface PaperAnalysis {
@@ -45,4 +46,14 @@ export interface PaperAnalysis {
     futureResearch: string;
   };
   domainKeywords: DomainKeyword[];
+}
+
+export interface AnalysisState {
+  status: "idle" | "uploading" | "parsing" | "analyzing" | "done" | "error";
+  progress: number;
+  message: string;
+  selectedModel: string;
+  lastFile?: File; 
+  result?: PaperAnalysis;
+  error?: string;
 }

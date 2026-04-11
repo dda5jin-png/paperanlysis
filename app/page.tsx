@@ -121,7 +121,11 @@ export default function HomePage() {
       formData.append("model", state.selectedModel);
       formData.append("filename", file.name); // 원본 파일명 전달
 
-      const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
+      const res = await fetch("/api/parse-pdf", { 
+        method: "POST", 
+        body: formData,
+        credentials: "include" 
+      });
 
       updateState({
         status: "analyzing",

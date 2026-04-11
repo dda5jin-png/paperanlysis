@@ -43,7 +43,7 @@ export default function LibraryPage() {
   const loadPapers = async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/api/papers");
+      const res  = await fetch("/api/papers", { credentials: "include" });
       const json = await res.json();
       setPapers(json.papers ?? []);
     } finally {
@@ -66,7 +66,10 @@ export default function LibraryPage() {
   // ── 삭제 ─────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     if (!confirm("이 논문을 서고에서 삭제할까요?")) return;
-    await fetch(`/api/papers/${id}`, { method: "DELETE" });
+    await fetch(`/api/papers/${id}`, { 
+      method: "DELETE",
+      credentials: "include" 
+    });
     setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; });
     loadPapers();
   };
