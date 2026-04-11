@@ -28,13 +28,38 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  const { data: profileRaw, error: profileError } = await supabase
+  // 프로필 조회는 RLS 이슈 방지를 위해 관리자 클라이언트 사용 권장 (SaaS 핵심 로직)
+  const { createAdminClient } = await import("@/lib/supabase/server");
+  const adminClient = await createAdminClient();
+
+  let { data: profileRaw, error: profileError } = await adminClient
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
 
-  if (profileError || !profileRaw) return NextResponse.json({ error: "프로필 로드 실패" }, { status: 500 });
+  // 만약 프로필이 없다면 (최초 가입자 등), 즉석에서 기본 프로필 생성 시도 (Self-Healing)
+  if (profileError || !profileRaw) {
+    console.warn(">>> [Warn] 프로필 부재 - 자동 생성 시도:", user.email);
+    const { data: newProfile, error: createError } = await adminClient
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        email: user.email,
+        role: "user",
+        credits: 5, // 최초 가입 보너스
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error(">>> [Error] 프로필 생성 실패:", createError);
+      return NextResponse.json({ error: "프로필 생성에 실패했습니다. 관리자에게 문의하세요." }, { status: 500 });
+    }
+    profileRaw = newProfile;
+  }
+
   if (!isUserActive(profileRaw)) return NextResponse.json({ error: "비활성화된 계정입니다." }, { status: 403 });
 
   const profile: UserProfile = {
