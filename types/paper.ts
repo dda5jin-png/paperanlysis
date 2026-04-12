@@ -3,27 +3,40 @@ export type AnalysisCategory = 'summary' | 'deep' | 'compare' | 'followup' | 'pd
 export interface VariableItem {
   name: string;
   type: "independent" | "dependent" | "control" | "moderating" | "other";
-  description: string;
+  description?: string;
+  originalText?: string; // 원문 그대로
+}
+
+export interface HypothesisItem {
+  id: string;   // H1, H2, 가설1 등
+  content: string; // 원문 그대로
+}
+
+export interface StructuredSection {
+  section: string;
+  content: string;
 }
 
 export interface DomainKeyword {
   term: string;
-  category: "사업유형" | "사업성지표" | "규제·인센티브" | "분석기법" | "정책·제도" | "기타";
-  importance: number;
+  category: string;
+  importance?: number;
+  frequency?: number;
 }
 
 export interface Introduction {
-  problemStatement: string;
-  oneLineSummary: string; // 신규: 무료 사용자용 한 줄 요약
-  researchQuestion?: string; // 매트릭스용 추가
+  problemStatement?: string;
+  oneLineSummary?: string;
+  researchQuestion?: string;
+  background?: string;
 }
 
 export interface PaperAnalysis {
   id: string;
   filename: string;
-  fileHash: string;      // 파일 기반 해싱
-  inputHash?: string;    // 요청 데이터 기반 해싱 (SaaS 캐싱용)
-  analysisType: AnalysisCategory; // 분석 유형
+  fileHash: string;
+  inputHash?: string;
+  analysisType: AnalysisCategory;
   title: string;
   authors: string[];
   year: string;
@@ -32,20 +45,28 @@ export interface PaperAnalysis {
   modelName: string;
   createdAt: string;
 
-  introduction: Introduction;
-  methodology: {
-    researchType: string;
-    dataSource: string;
-    variables: VariableItem[];
+  // v4.0 핵심 필드 (원문 기반)
+  summary?: string;                        // 핵심 요약
+  hypotheses?: HypothesisItem[];           // 연구 가설 (원문)
+  hasQuantitativeAnalysis?: boolean;       // 계량분석 여부
+  limitations?: string[];                  // 연구의 한계 (원문 문장)
+  structuredSummary?: StructuredSection[]; // 계량분석 없을 때 구조화 요약
+
+  // 하위 호환 필드
+  introduction?: Introduction;
+  methodology?: {
+    researchType?: string;
+    dataSource?: string;
+    variables?: VariableItem[];
     analysisMethod?: string[];
   };
-  conclusion: {
-    keyFindings: string[];
-    implications: string[];
-    limitations: string;
-    futureResearch: string;
+  conclusion?: {
+    keyFindings?: string[];
+    implications?: string[];
+    limitations?: string;
+    futureResearch?: string;
   };
-  domainKeywords: DomainKeyword[];
+  domainKeywords?: DomainKeyword[];
 }
 
 export interface AnalysisState {
