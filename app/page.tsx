@@ -159,7 +159,7 @@ export default function HomePage() {
                 🎉 비회원도 1회 무료로 논문을 분석할 수 있습니다. 회원가입하면 하루 3회 + 서고 기능을 이용할 수 있어요.
               </p>
               <button
-                onClick={() => router.push("/pricing")}
+                onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
                 className="shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl hover:bg-blue-700 transition-all"
               >
                 회원가입
@@ -174,10 +174,10 @@ export default function HomePage() {
                 무료 체험 1회를 사용했습니다. 계속 이용하려면 회원가입 후 로그인 해주세요.
               </p>
               <button
-                onClick={() => window.location.href = "/"}
+                onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
                 className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white text-xs font-black rounded-xl hover:bg-amber-700 transition-all"
               >
-                <LogIn className="w-3.5 h-3.5" /> 로그인
+                <LogIn className="w-3.5 h-3.5" /> 회원가입 / 로그인
               </button>
             </div>
           )}
@@ -222,10 +222,10 @@ export default function HomePage() {
                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-4">
                       <p className="text-sm text-blue-800 font-medium">회원가입하면 하루 3회 무료 + 서고 저장 기능을 이용할 수 있어요.</p>
                       <button
-                        onClick={() => window.location.href = "/"}
+                        onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
                         className="shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl"
                       >
-                        로그인하기
+                        회원가입 / 로그인
                       </button>
                     </div>
                   )}

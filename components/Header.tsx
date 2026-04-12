@@ -26,7 +26,14 @@ export default function Header() {
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    // 전역 인증 모달 트리거 (어디서든 window.dispatchEvent(new CustomEvent('openAuthModal')) 호출 가능)
+    const handleOpenAuthModal = () => setIsAuthModalOpen(true);
+    window.addEventListener("openAuthModal", handleOpenAuthModal);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("openAuthModal", handleOpenAuthModal);
+    };
   }, []);
 
   const handleLogout = async () => {
