@@ -13,6 +13,7 @@ import { cn, formatFileSize } from "@/lib/utils";
 interface PdfUploaderProps {
   onUpload: (file: File) => void;
   isLoading?: boolean;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 export default function PdfUploader({
   onUpload,
   isLoading = false,
+  disabled = false,
   className,
 }: PdfUploaderProps) {
   const [dragOver, setDragOver] = useState(false);
@@ -85,10 +87,12 @@ export default function PdfUploader({
 
   // ── 분석 시작 ────────────────────────────────────────────
   const handleSubmit = () => {
-    if (selectedFile && !isLoading) {
+    if (selectedFile && !isLoading && !disabled) {
       onUpload(selectedFile);
     }
   };
+
+  const isDisabled = isLoading || disabled;
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
@@ -97,19 +101,19 @@ export default function PdfUploader({
         role="button"
         tabIndex={0}
         aria-label="PDF 파일 업로드 영역"
-        onClick={() => !isLoading && inputRef.current?.click()}
-        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        onClick={() => !isDisabled && inputRef.current?.click()}
+        onKeyDown={(e) => e.key === "Enter" && !isDisabled && inputRef.current?.click()}
+        onDragOver={!isDisabled ? handleDragOver : undefined}
+        onDragLeave={!isDisabled ? handleDragLeave : undefined}
+        onDrop={!isDisabled ? handleDrop : undefined}
         className={cn(
           "relative flex flex-col items-center justify-center gap-4",
           "rounded-2xl border-2 border-dashed p-12 text-center",
-          "cursor-pointer transition-all duration-200 select-none",
-          dragOver
-            ? "border-blue-400 bg-blue-50 scale-[1.01]"
-            : "border-slate-300 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/50",
-          isLoading && "pointer-events-none opacity-60"
+          "transition-all duration-200 select-none",
+          isDisabled
+            ? "pointer-events-none opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+            : "cursor-pointer border-slate-300 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/50",
+          dragOver && !isDisabled && "border-blue-400 bg-blue-50 scale-[1.01]"
         )}
       >
         {/* 아이콘 */}
@@ -150,7 +154,7 @@ export default function PdfUploader({
           accept=".pdf,application/pdf"
           className="hidden"
           onChange={handleInputChange}
-          disabled={isLoading}
+          disabled={isDisabled}
         />
       </div>
 
@@ -202,7 +206,7 @@ export default function PdfUploader({
       {selectedFile && !fileError && (
         <button
           onClick={handleSubmit}
-          disabled={isLoading}
+          disabled={isDisabled}
           className="btn-primary w-full justify-center py-3 text-base"
         >
           {isLoading ? (

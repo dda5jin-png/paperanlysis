@@ -2,23 +2,20 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
-import { RotateCcw, Info, Sparkles, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { RotateCcw, Info, Sparkles, LogIn } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import Hero from "@/components/Hero";
 import PdfUploader from "@/components/ui/PdfUploader";
 import AnalysisProgress from "@/components/ui/AnalysisProgress";
 import AnalysisResult from "@/components/analyzer/AnalysisResult";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import {
-  MODELS,
-  DEFAULT_MODEL_ID,
-  getModelsByProvider,
-  type ModelConfig,
-} from "@/lib/models";
+import { DEFAULT_MODEL_ID } from "@/lib/models";
 
 import type { AnalysisState, PaperAnalysis } from "@/types/paper";
+
+const GUEST_USED_KEY = "paper_guest_used"; // localStorage 키
 
 const IDLE_STATE: AnalysisState = {
   status: "idle",
@@ -27,214 +24,243 @@ const IDLE_STATE: AnalysisState = {
   selectedModel: DEFAULT_MODEL_ID,
 };
 
-// ── 컴포넌트: 모델 카드 ────────────────────────────────────
-function ModelOption({
-  model,
-  selected,
-  onSelect,
-}: {
-  model: ModelConfig;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "group relative flex flex-col p-4 rounded-2xl border-2 transition-all text-left",
-        selected
-          ? "border-blue-600 bg-blue-50/50 shadow-md"
-          : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm"
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className={cn(
-          "text-sm font-bold",
-          selected ? "text-blue-700" : "text-slate-900"
-        )}>
-          {model.name}
-        </span>
-        {model.badge && (
-          <span className={cn(
-            "rounded-full px-2 py-0.5 text-[10px] font-bold",
-            model.badgeColor || "bg-slate-100 text-slate-600"
-          )}>
-            {model.badge}
-          </span>
-        )}
-      </div>
-      <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">
-        {model.description}
-      </p>
-      <div className={cn(
-        "mt-3 flex items-center gap-1 text-[11px] font-bold",
-        selected ? "text-blue-600" : "text-slate-400"
-      )}>
-        {model.costLabel}
-        <ChevronRight className="h-3 w-3" />
-      </div>
-    </button>
-  );
-}
-
-// ── 메인 페이지 ──────────────────────────────────────────
 export default function HomePage() {
+  const router = useRouter();
   const [state, setState] = useState<AnalysisState>(IDLE_STATE);
+  const [session, setSession] = useState<any>(null);
+  const [guestUsed, setGuestUsed] = useState(false);
+
+  // 로그인 상태 + 비회원 사용 여부 확인
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    if (typeof window !== "undefined") {
+      setGuestUsed(localStorage.getItem(GUEST_USED_KEY) === "true");
+    }
+    return () => subscription.unsubscribe();
+  }, []);
 
   const updateState = (patch: Partial<AnalysisState>) =>
     setState((prev) => ({ ...prev, ...patch }));
 
   const handleUpload = async (file: File) => {
-    const modelConfig = MODELS.find((m) => m.id === state.selectedModel);
-    const modelLabel  = modelConfig?.name ?? state.selectedModel;
+    const isGuest = !session;
+
+    // 비회원이 이미 1회 사용한 경우
+    if (isGuest && guestUsed) {
+      setState((prev) => ({
+        ...prev,
+        status: "error",
+        progress: 0,
+        message: "분석 불가",
+        error: "비회원은 1회만 무료로 분석할 수 있습니다. 회원가입 후 하루 3회 무료 이용이 가능합니다.",
+        errorCode: "LOGIN_REQUIRED",
+      }));
+      return;
+    }
 
     try {
       updateState({
         status: "uploading",
         progress: 10,
-        message: "파일을 저장소(Supabase)에 업로드하는 중…",
+        message: "파일을 업로드하는 중…",
         lastFile: file,
       });
 
-      // 1. Supabase Storage에 업로드 (4.5MB 제한 우회)
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `uploads/${fileName}`;
+      const formData = new FormData();
+      formData.append("model", state.selectedModel);
+      formData.append("filename", file.name);
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("papers")
-        .upload(filePath, file);
+      const headers: Record<string, string> = {};
 
-      if (uploadError) {
-        throw new Error(`저장소 업로드 실패: ${uploadError.message}`);
+      if (isGuest) {
+        // ── 비회원: 파일을 직접 API로 전송 (Supabase Storage 우회) ──
+        formData.append("file", file);
+        headers["x-guest-token"] = "guest-once";
+      } else {
+        // ── 로그인 사용자: Supabase Storage 경유 ──
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+        const filePath = `uploads/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("papers")
+          .upload(filePath, file);
+
+        if (uploadError) {
+          throw new Error(`업로드 실패: ${uploadError.message}`);
+        }
+        formData.append("storagePath", filePath);
       }
 
-      updateState({
-        status: "parsing",
-        progress: 30,
-        message: "저장된 파일에서 텍스트를 분석하는 중…",
-      });
+      updateState({ status: "parsing", progress: 30, message: "PDF에서 텍스트를 추출하는 중…" });
 
-      // 2. API 호출 (파일 대신 주소 전달)
-      const formData = new FormData();
-      formData.append("storagePath", filePath);
-      formData.append("model", state.selectedModel);
-      formData.append("filename", file.name); // 원본 파일명 전달
-
-      const res = await fetch("/api/parse-pdf", { 
-        method: "POST", 
+      const res = await fetch("/api/parse-pdf", {
+        method: "POST",
         body: formData,
-        credentials: "include" 
+        credentials: "include",
+        headers,
       });
 
       updateState({
         status: "analyzing",
         progress: 65,
-        message: `${modelLabel} 분석 엔진이 논문 구조를 분석하는 중… (최대 40초 소요)`,
+        message: "AI가 논문 구조를 분석하는 중… (최대 40초 소요)",
       });
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw {
-          message: json.error ?? "알 수 없는 오류",
-          errorCode: json.errorCode as any,
-          provider: json.provider as any,
-        };
+        throw { message: json.error ?? "알 수 없는 오류", errorCode: json.errorCode };
       }
 
-      const result: PaperAnalysis = json.result;
+      // 비회원 사용 기록 저장
+      if (isGuest) {
+        localStorage.setItem(GUEST_USED_KEY, "true");
+        setGuestUsed(true);
+      }
+
       setState((prev) => ({
         ...prev,
         status: "done",
         progress: 100,
-        message: `분석 완료 — ${json.pageCount}페이지 · ${modelLabel}`,
-        result,
+        message: `분석 완료`,
+        result: json.result as PaperAnalysis,
       }));
     } catch (err: any) {
-      const msg = err.message || String(err);
-      const errorCode = err.errorCode || "AI_ERROR";
-
       setState((prev) => ({
         ...prev,
         status: "error",
         progress: 0,
         message: "분석 실패",
-        error: msg,
-        errorCode,
+        error: err.message || String(err),
+        errorCode: err.errorCode || "AI_ERROR",
       }));
     }
   };
 
   const handleRetryWithGemini = () => {
     if (!state.lastFile) return;
-    const geminiId = "gemini-2.0-flash";
-    setState(prev => ({ ...prev, selectedModel: geminiId }));
+    setState((prev) => ({ ...prev, selectedModel: "gemini-2.0-flash" }));
     handleUpload(state.lastFile);
   };
 
   const handleReset = () => setState(IDLE_STATE);
-  const isLoading   = ["uploading", "parsing", "analyzing"].includes(state.status);
-
-  const geminiModels = getModelsByProvider("gemini");
-  const claudeModels = getModelsByProvider("claude");
-  const selectedModel = MODELS.find((m) => m.id === state.selectedModel);
+  const isLoading = ["uploading", "parsing", "analyzing"].includes(state.status);
 
   return (
     <div className="flex flex-col min-h-screen">
       <Hero />
 
       <div className="container mx-auto px-6 pb-24 -mt-12 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          {/* 업로드 & 설정 영역 */}
+        <div className="max-w-3xl mx-auto">
+
+          {/* 비회원 안내 배너 */}
+          {!session && !guestUsed && state.status === "idle" && (
+            <div className="mb-6 flex items-center justify-between gap-4 px-6 py-4 bg-blue-50 border border-blue-100 rounded-2xl">
+              <p className="text-sm font-bold text-blue-800">
+                🎉 비회원도 1회 무료로 논문을 분석할 수 있습니다. 회원가입하면 하루 3회 + 서고 기능을 이용할 수 있어요.
+              </p>
+              <button
+                onClick={() => router.push("/pricing")}
+                className="shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl hover:bg-blue-700 transition-all"
+              >
+                회원가입
+              </button>
+            </div>
+          )}
+
+          {/* 비회원 사용 완료 배너 */}
+          {!session && guestUsed && state.status === "idle" && (
+            <div className="mb-6 flex items-center justify-between gap-4 px-6 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
+              <p className="text-sm font-bold text-amber-800">
+                무료 체험 1회를 사용했습니다. 계속 이용하려면 회원가입 후 로그인 해주세요.
+              </p>
+              <button
+                onClick={() => window.location.href = "/"}
+                className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white text-xs font-black rounded-xl hover:bg-amber-700 transition-all"
+              >
+                <LogIn className="w-3.5 h-3.5" /> 로그인
+              </button>
+            </div>
+          )}
+
+          {/* 업로드 영역 */}
           {(state.status === "idle" || state.status === "error") && (
-            <div className="grid gap-8">
-              <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-12 transition-all">
+            <div className="space-y-6">
+              <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-12">
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">논문 정밀 분석하기</h2>
-                    <p className="mt-1 text-sm text-slate-500">분석하고 싶은 논문 파일을 선택하거나 끌어다 놓으세요.</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      PDF를 올리면 AI가 핵심 내용을 구조적으로 요약해드립니다.
+                    </p>
                   </div>
                   <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
                     <Sparkles className="h-6 w-6" />
                   </div>
                 </div>
-
-                <PdfUploader onUpload={handleUpload} isLoading={isLoading} />
+                <PdfUploader
+                  onUpload={handleUpload}
+                  isLoading={isLoading}
+                  disabled={!session && guestUsed}
+                />
               </div>
 
-              {/* 에러 상태 표시 */}
+              {/* 에러 표시 */}
               {state.status === "error" && (
-                <div className="bg-red-50 border border-red-100 rounded-3xl p-8 transition-all">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                <div className="bg-red-50 border border-red-100 rounded-3xl p-8">
+                  <div className="flex items-start gap-3 mb-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 shrink-0 mt-0.5">
                       <Info className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-red-900">분석 중 문제가 발생했습니다</h3>
-                      <p className="text-sm text-red-700/80">{state.error || "알 수 없는 오류가 발생했습니다."}</p>
+                      <h3 className="text-base font-bold text-red-900 mb-1">분석 중 문제가 발생했습니다</h3>
+                      <p className="text-sm text-red-700/80 leading-relaxed">{state.error}</p>
                     </div>
                   </div>
 
                   {/* 에러 코드별 안내 */}
-                  {state.errorCode === "PROFILE_SETUP_REQUIRED" && (
-                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800 font-medium">
-                      🔧 <strong>Supabase 설정 필요:</strong> 처음 회원가입한 계정입니다.
-                      관리자가 Supabase SQL Editor에서 <code className="bg-amber-100 px-1 rounded">sql/fix_profiles_and_rls.sql</code> 파일을 실행하면 해결됩니다.
+                  {state.errorCode === "LOGIN_REQUIRED" && (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-4">
+                      <p className="text-sm text-blue-800 font-medium">회원가입하면 하루 3회 무료 + 서고 저장 기능을 이용할 수 있어요.</p>
+                      <button
+                        onClick={() => window.location.href = "/"}
+                        className="shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl"
+                      >
+                        로그인하기
+                      </button>
                     </div>
                   )}
                   {state.errorCode === "LIMIT_EXCEEDED" && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-sm text-blue-800 font-medium">
-                      📊 오늘의 무료 분석 한도를 사용했습니다. Pro 플랜으로 하루 50회까지 분석할 수 있어요.
+                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-4">
+                      <p className="text-sm text-amber-800 font-medium">오늘 한도를 사용했어요. 크레딧을 구매하거나 내일 다시 이용하세요.</p>
+                      <button
+                        onClick={() => router.push("/pricing")}
+                        className="shrink-0 px-4 py-2 bg-amber-600 text-white text-xs font-black rounded-xl"
+                      >
+                        크레딧 충전
+                      </button>
+                    </div>
+                  )}
+                  {state.errorCode === "PROFILE_SETUP_REQUIRED" && (
+                    <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <p className="text-sm text-slate-600 font-medium">🔧 서버 초기 설정이 필요합니다. 관리자에게 문의해 주세요.</p>
                     </div>
                   )}
 
                   <div className="flex flex-wrap gap-3">
-                    <button onClick={handleReset} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-red-200 text-red-700 font-bold rounded-xl hover:bg-red-100/50 transition-all active:scale-95">
-                      <RotateCcw className="h-4 w-4" /> 처음부터 다시 시도
+                    <button
+                      onClick={handleReset}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-red-200 text-red-700 font-bold rounded-xl hover:bg-red-50 transition-all active:scale-95"
+                    >
+                      <RotateCcw className="h-4 w-4" /> 다시 시도
                     </button>
-                    {state.lastFile && state.selectedModel !== "gemini-2.0-flash" && state.errorCode !== "LIMIT_EXCEEDED" && (
-                      <button onClick={handleRetryWithGemini} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-md active:scale-95">
-                        <Sparkles className="h-4 w-4" /> Gemini 2.0 Flash로 즉시 재시도
+                    {state.lastFile && state.errorCode !== "LIMIT_EXCEEDED" && state.errorCode !== "LOGIN_REQUIRED" && state.selectedModel !== "gemini-2.0-flash" && (
+                      <button
+                        onClick={handleRetryWithGemini}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-md active:scale-95"
+                      >
+                        <Sparkles className="h-4 w-4" /> Gemini로 재시도
                       </button>
                     )}
                   </div>
@@ -243,23 +269,26 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* 진행 상태 표시 */}
+          {/* 진행 상태 */}
           {isLoading && (
             <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 sm:p-12">
               <AnalysisProgress status={state.status} progress={state.progress} message={state.message} />
             </div>
           )}
 
-          {/* 분석 결과 표시 */}
+          {/* 분석 결과 */}
           {state.status === "done" && state.result && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between no-print">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <p className="text-sm font-bold text-slate-500">{state.message}</p>
+                  <p className="text-sm font-bold text-slate-500">분석 완료</p>
                 </div>
-                <button onClick={handleReset} className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all active:scale-95">
-                  <RotateCcw className="h-4 w-4" /> 새 논문 분석하기
+                <button
+                  onClick={handleReset}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all active:scale-95"
+                >
+                  <RotateCcw className="h-4 w-4" /> 새 논문 분석
                 </button>
               </div>
               <AnalysisResult data={state.result} />

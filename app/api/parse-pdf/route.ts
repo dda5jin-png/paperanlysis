@@ -24,9 +24,30 @@ export async function POST(req: NextRequest) {
   console.log(">>> [POST /api/parse-pdf] SaaS v3.0 Processing Engine");
   const supabase = await createClient();
 
-  // 1. 인증 및 사용자 활성 여부 확인
+  // 1. 인증 확인 — 비회원이면 guest 토큰으로 1회 허용
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  // ── 비회원 처리 (1회 무료 분석) ──────────────────────────
+  if (!user) {
+    // 비회원은 파일 업로드 후 분석만 허용, 서고/크레딧 없음
+    // 클라이언트가 헤더로 guest 토큰을 보내지 않으면 그냥 통과 (1회)
+    // 실제 횟수 제한은 클라이언트(localStorage)에서 관리
+    const isGuestAllowed = req.headers.get("x-guest-token") === "guest-once";
+    if (!isGuestAllowed) {
+      return NextResponse.json({
+        error: "로그인이 필요합니다. 비회원은 1회만 무료로 분석할 수 있습니다.",
+        errorCode: "LOGIN_REQUIRED"
+      }, { status: 401 });
+    }
+    // 비회원은 아래 분석 로직을 타지만 서고저장/캐싱 없이 결과만 반환
+    // (이 경우 profileRaw 없이 분석만 실행하는 별도 처리로 이어짐)
+  }
+
+  // ── 비회원 분기: 프로필 없이 바로 분석 (저장/캐시 없음) ──────
+  if (!user) {
+    // 비회원 분석 전용 코드 경로 (아래에서 처리)
+    return handleGuestAnalysis(req, supabase);
+  }
 
   // 프로필 조회는 RLS 이슈 방지를 위해 관리자 클라이언트 사용 권장 (SaaS 핵심 로직)
   const { createAdminClient } = await import("@/lib/supabase/server");
@@ -92,25 +113,42 @@ export async function POST(req: NextRequest) {
 
   // 2. 사용량 제한 확인 (Rate Limiting)
   if (!isAdmin(profile)) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // 오늘 발생한 모든 분석 카운트
-    const { count, error: countError } = await supabase
-      .from("usage_logs")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", profile.id)
-      .filter("action_type", "ilike", "analysis_%")
-      .gte("created_at", today.toISOString());
+    const isSubscribed = profile.paidPlan === "subscription";
 
-    if (countError) console.error("사용량 조회 오류:", countError);
-    
-    const limit = getEffectiveDailyLimit(profile);
-    if ((count || 0) >= limit) {
-      return NextResponse.json({ 
-        error: "오늘의 무료 분석 한도를 모두 사용하셨습니다.", 
-        errorCode: "LIMIT_EXCEEDED"
-      }, { status: 403 });
+    // 월구독자: 무제한 허용
+    if (!isSubscribed) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { count, error: countError } = await adminClient
+        .from("usage_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .filter("action_type", "ilike", "analysis_%")
+        .gte("created_at", today.toISOString());
+
+      if (countError) console.error("사용량 조회 오류:", countError);
+
+      const dailyLimit = getEffectiveDailyLimit(profile);
+      const todayCount = count || 0;
+
+      // 일일 한도 초과 → 크레딧으로 대체 가능
+      if (todayCount >= dailyLimit) {
+        // 크레딧이 있으면 차감 후 허용
+        if ((profile.credits ?? 0) > 0) {
+          await adminClient
+            .from("profiles")
+            .update({ credits: (profile.credits ?? 0) - 1 })
+            .eq("id", profile.id);
+          console.log(`>>> [Credit] ${profile.email} 크레딧 차감: ${profile.credits} → ${(profile.credits ?? 0) - 1}`);
+        } else {
+          return NextResponse.json({
+            error: "오늘의 무료 분석 한도(3회)를 모두 사용했습니다. 크레딧을 구매하거나 내일 다시 이용해 주세요.",
+            errorCode: "LIMIT_EXCEEDED",
+            remainingCredits: 0,
+          }, { status: 403 });
+        }
+      }
     }
   }
 
@@ -266,6 +304,87 @@ export async function POST(req: NextRequest) {
     success: true, 
     analysisType: requestedType,
     result: finalResult 
+  });
+}
+
+// ── 비회원 전용 분석 핸들러 (저장/캐시 없이 결과만 반환) ─────────
+async function handleGuestAnalysis(req: NextRequest, supabase: any) {
+  let modelId: string;
+  let originalFilename: string;
+  let buffer: Buffer;
+
+  try {
+    const formData = await req.formData();
+    modelId = formData.get("model") as string || DEFAULT_MODEL_ID;
+    originalFilename = formData.get("filename") as string || "unnamed.pdf";
+
+    // 비회원은 파일을 직접 FormData로 전송 (Supabase Storage 우회)
+    const fileEntry = formData.get("file");
+    if (fileEntry && fileEntry instanceof Blob) {
+      buffer = Buffer.from(await fileEntry.arrayBuffer());
+    } else {
+      // 폴백: storagePath로 다운로드 시도 (하위 호환)
+      const storagePath = formData.get("storagePath") as string;
+      if (!storagePath) {
+        return NextResponse.json({ error: "파일이 전달되지 않았습니다." }, { status: 400 });
+      }
+      const { createAdminClient } = await import("@/lib/supabase/server");
+      const adminClient = await createAdminClient();
+      const { data: fileData, error } = await adminClient.storage.from("papers").download(storagePath);
+      if (error || !fileData) throw new Error("다운로드 실패");
+      buffer = Buffer.from(await fileData.arrayBuffer());
+      // 다운로드 후 임시 파일 삭제
+      await adminClient.storage.from("papers").remove([storagePath]);
+    }
+  } catch {
+    return NextResponse.json({ error: "데이터 추출 실패" }, { status: 400 });
+  }
+
+  // PDF 파싱 & AI 분석
+  let rawText: string;
+  try {
+    const parsed = await pdfParse(buffer, { max: 20 });
+    rawText = parsed.text;
+  } catch {
+    return NextResponse.json({ error: "PDF 해석 불가" }, { status: 422 });
+  }
+
+  const modelConfig = getModelById(modelId) || getModelById(DEFAULT_MODEL_ID);
+  let analysisJson: any;
+
+  try {
+    if (modelConfig!.provider === "claude") {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+      const message = await anthropic.messages.create({
+        model: modelConfig!.apiModel,
+        max_tokens: 4000,
+        messages: [{ role: "user", content: buildFreeAnalysisPrompt(rawText) }],
+      });
+      analysisJson = parseJsonResponse(message.content[0].type === "text" ? message.content[0].text : "");
+    } else {
+      const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
+      const gemini = genAI.getGenerativeModel({ model: modelConfig!.apiModel, generationConfig: { responseMimeType: "application/json" } });
+      const result = await gemini.generateContent(buildFreeAnalysisPrompt(rawText));
+      analysisJson = parseJsonResponse(result.response.text());
+    }
+  } catch (e: any) {
+    return NextResponse.json({ error: `AI 엔진 오류: ${e.message}` }, { status: 500 });
+  }
+
+  const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
+  return NextResponse.json({
+    success: true,
+    isGuest: true,
+    result: {
+      id: generateId(),
+      filename: originalFilename,
+      fileHash,
+      analysisType: "summary",
+      createdAt: new Date().toISOString(),
+      modelId: modelConfig!.id,
+      modelName: modelConfig!.name,
+      ...analysisJson,
+    }
   });
 }
 
