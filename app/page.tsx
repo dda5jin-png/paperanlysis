@@ -73,25 +73,23 @@ export default function HomePage() {
 
       const headers: Record<string, string> = {};
 
-      if (isGuest) {
-        // ── 비회원: 파일을 직접 API로 전송 (Supabase Storage 우회) ──
-        formData.append("file", file);
-        headers["x-guest-token"] = "guest-once";
-      } else {
-        // ── 로그인 사용자: Supabase Storage 경유 ──
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-        const filePath = `uploads/${fileName}`;
+      // 비회원은 guest-uploads/, 로그인 사용자는 uploads/ 경로 사용
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = isGuest
+        ? `guest-uploads/${fileName}`
+        : `uploads/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("papers")
-          .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage
+        .from("papers")
+        .upload(filePath, file);
 
-        if (uploadError) {
-          throw new Error(`업로드 실패: ${uploadError.message}`);
-        }
-        formData.append("storagePath", filePath);
+      if (uploadError) {
+        throw new Error(`업로드 실패: ${uploadError.message}`);
       }
+
+      formData.append("storagePath", filePath);
+      if (isGuest) headers["x-guest-token"] = "guest-once";
 
       updateState({ status: "parsing", progress: 30, message: "PDF에서 텍스트를 추출하는 중…" });
 

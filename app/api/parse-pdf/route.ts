@@ -311,33 +311,28 @@ export async function POST(req: NextRequest) {
 async function handleGuestAnalysis(req: NextRequest, supabase: any) {
   let modelId: string;
   let originalFilename: string;
-  let buffer: Buffer;
+  let storagePath: string;
 
   try {
     const formData = await req.formData();
+    storagePath = formData.get("storagePath") as string;
     modelId = formData.get("model") as string || DEFAULT_MODEL_ID;
     originalFilename = formData.get("filename") as string || "unnamed.pdf";
-
-    // 비회원은 파일을 직접 FormData로 전송 (Supabase Storage 우회)
-    const fileEntry = formData.get("file");
-    if (fileEntry && fileEntry instanceof Blob) {
-      buffer = Buffer.from(await fileEntry.arrayBuffer());
-    } else {
-      // 폴백: storagePath로 다운로드 시도 (하위 호환)
-      const storagePath = formData.get("storagePath") as string;
-      if (!storagePath) {
-        return NextResponse.json({ error: "파일이 전달되지 않았습니다." }, { status: 400 });
-      }
-      const { createAdminClient } = await import("@/lib/supabase/server");
-      const adminClient = await createAdminClient();
-      const { data: fileData, error } = await adminClient.storage.from("papers").download(storagePath);
-      if (error || !fileData) throw new Error("다운로드 실패");
-      buffer = Buffer.from(await fileData.arrayBuffer());
-      // 다운로드 후 임시 파일 삭제
-      await adminClient.storage.from("papers").remove([storagePath]);
-    }
+    if (!storagePath) return NextResponse.json({ error: "파일 경로가 없습니다." }, { status: 400 });
   } catch {
     return NextResponse.json({ error: "데이터 추출 실패" }, { status: 400 });
+  }
+
+  // adminClient로 guest-uploads/ 파일 다운로드
+  const { createAdminClient } = await import("@/lib/supabase/server");
+  const adminClient = await createAdminClient();
+  let buffer: Buffer;
+  try {
+    const { data: fileData, error } = await adminClient.storage.from("papers").download(storagePath);
+    if (error || !fileData) throw new Error("다운로드 실패");
+    buffer = Buffer.from(await fileData.arrayBuffer());
+  } catch {
+    return NextResponse.json({ error: "저장소 파일 접근 실패" }, { status: 500 });
   }
 
   // PDF 파싱 & AI 분석
@@ -370,6 +365,9 @@ async function handleGuestAnalysis(req: NextRequest, supabase: any) {
   } catch (e: any) {
     return NextResponse.json({ error: `AI 엔진 오류: ${e.message}` }, { status: 500 });
   }
+
+  // 분석 완료 후 임시 파일 삭제
+  await adminClient.storage.from("papers").remove([storagePath]);
 
   const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
   return NextResponse.json({
