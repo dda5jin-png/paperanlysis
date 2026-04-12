@@ -111,44 +111,53 @@ export async function POST(req: NextRequest) {
     createdAt: profileRaw.created_at,
   };
 
-  // 2. 사용량 제한 확인 (Rate Limiting)
+  // 2. 사용량 제한 확인 v2 (subscriptions + usage_wallets 기반)
   if (!isAdmin(profile)) {
-    const isSubscribed = profile.paidPlan === "subscription";
+    const now = new Date().toISOString();
 
-    // 월구독자: 무제한 허용
-    if (!isSubscribed) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    // 2a. 유효한 유료 구독 확인
+    const { data: activeSub } = await adminClient
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .gt("end_at", now)
+      .limit(1)
+      .maybeSingle();
 
-      const { count, error: countError } = await adminClient
-        .from("usage_logs")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", profile.id)
-        .filter("action_type", "ilike", "analysis_%")
-        .gte("created_at", today.toISOString());
+    if (!activeSub) {
+      // 2b. 지갑 잔여 횟수 확인
+      const { data: wallet } = await adminClient
+        .from("usage_wallets")
+        .select("balance")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      if (countError) console.error("사용량 조회 오류:", countError);
+      const balance = wallet?.balance ?? 0;
 
-      const dailyLimit = getEffectiveDailyLimit(profile);
-      const todayCount = count || 0;
-
-      // 일일 한도 초과 → 크레딧으로 대체 가능
-      if (todayCount >= dailyLimit) {
-        // 크레딧이 있으면 차감 후 허용
-        if ((profile.credits ?? 0) > 0) {
-          await adminClient
-            .from("profiles")
-            .update({ credits: (profile.credits ?? 0) - 1 })
-            .eq("id", profile.id);
-          console.log(`>>> [Credit] ${profile.email} 크레딧 차감: ${profile.credits} → ${(profile.credits ?? 0) - 1}`);
-        } else {
-          return NextResponse.json({
-            error: "오늘의 무료 분석 한도(3회)를 모두 사용했습니다. 크레딧을 구매하거나 내일 다시 이용해 주세요.",
-            errorCode: "LIMIT_EXCEEDED",
-            remainingCredits: 0,
-          }, { status: 403 });
-        }
+      if (balance <= 0) {
+        return NextResponse.json({
+          error: "분석 가능한 횟수가 없습니다. 출석 보너스를 획득하거나 이용권을 구매해 주세요.",
+          errorCode: "NO_QUOTA",
+        }, { status: 403 });
       }
+
+      // 2c. 지갑에서 1회 차감
+      const newBalance = balance - 1;
+      await adminClient
+        .from("usage_wallets")
+        .update({ balance: newBalance, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+
+      // 차감 트랜잭션 기록
+      await adminClient.from("usage_transactions").insert({
+        user_id: user.id,
+        type: "USE_UPLOAD",
+        amount: -1,
+        meta: { remaining: newBalance },
+      });
+
+      console.log(`>>> [Wallet] ${profile.email} 잔여: ${balance} → ${newBalance}`);
     }
   }
 

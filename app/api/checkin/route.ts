@@ -1,124 +1,184 @@
+/**
+ * 출석 체크인 API v2
+ * POST: 오늘 출석 처리 + 보상 지급 (중복 방지)
+ * GET:  현재 출석/지갑/구독 상태 반환
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-export async function POST(req: NextRequest) {
+function getMonthStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function endOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+export async function POST(_req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "로그인 필요" }, { status: 401 });
 
-  const adminClient = await createAdminClient();
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const admin = await createAdminClient();
   const now = new Date();
-  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0];
+  const todayStr = now.toISOString().split("T")[0];
+  const monthStr = getMonthStr(now);
+  const monthStart = `${monthStr}-01`;
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0];
 
   // 1. 오늘 이미 출석했는지 확인
-  const { data: existing } = await adminClient
-    .from("daily_checkins")
+  const { data: existing } = await admin
+    .from("attendance_logs")
     .select("id")
     .eq("user_id", user.id)
-    .eq("checked_in_date", today)
+    .eq("attended_date", todayStr)
     .maybeSingle();
 
-  // 2. 이번달 출석 횟수
-  const { count: monthlyCount } = await adminClient
-    .from("daily_checkins")
+  const { count: prevMonthlyCount } = await admin
+    .from("attendance_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
-    .gte("checked_in_date", thisMonth)
-    .lt("checked_in_date", nextMonth);
+    .gte("attended_date", monthStart)
+    .lt("attended_date", nextMonthStart);
 
-  const currentMonthlyCount = monthlyCount ?? 0;
-
-  // 3. 프로필 조회
-  const { data: profile } = await adminClient
-    .from("profiles")
-    .select("bonus_uses, event_bonus_month, free_daily_limit")
-    .eq("id", user.id)
-    .single();
+  const prevCount = prevMonthlyCount ?? 0;
 
   if (existing) {
-    // 이미 출석한 경우 현재 상태만 반환
+    const { data: wallet } = await admin
+      .from("usage_wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .maybeSingle();
     return NextResponse.json({
       alreadyCheckedIn: true,
-      monthlyCount: currentMonthlyCount,
-      bonusUses: profile?.bonus_uses ?? 0,
+      monthlyCount: prevCount,
+      walletBalance: wallet?.balance ?? 0,
+      bonusDelta: 0,
+      bonusMessage: null,
     });
   }
 
-  // 4. 출석 기록 삽입
-  await adminClient.from("daily_checkins").insert({
-    user_id: user.id,
-    checked_in_date: today,
-    credits_earned: 0,
-  });
+  // 2. 출석 기록 삽입
+  await admin.from("attendance_logs").insert({ user_id: user.id, attended_date: todayStr });
+  const newCount = prevCount + 1;
 
-  const newMonthlyCount = currentMonthlyCount + 1;
+  // 3. 구독 중이면 보상 계산 생략
+  const { data: activeSub } = await admin
+    .from("subscriptions")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .gt("end_at", now.toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (activeSub) {
+    return NextResponse.json({
+      alreadyCheckedIn: false,
+      monthlyCount: newCount,
+      walletBalance: 0,
+      bonusDelta: 0,
+      bonusMessage: null,
+    });
+  }
+
+  // 4. 보상 계산 (무료회원만)
   let bonusDelta = 0;
-  let bonusMessage = "";
+  let bonusMessage: string | null = null;
 
-  // 5. 보너스 체크: 매 3회 출석 → +2회
-  if (newMonthlyCount % 3 === 0) {
-    bonusDelta += 2;
-    bonusMessage = `🎉 이번달 ${newMonthlyCount}회 출석! +2회 보너스 지급`;
+  // 4a. 3회 단위 보상 (3, 6, 9, 12회)
+  if (newCount % 3 === 0 && newCount <= 12) {
+    const { error: grantErr } = await admin
+      .from("monthly_reward_grants")
+      .insert({ user_id: user.id, month: monthStr, milestone: newCount });
+
+    if (!grantErr) {
+      bonusDelta += 2;
+      bonusMessage = `🎉 이번달 ${newCount}회 출석! 분석 +2회 지급`;
+      await admin.from("usage_transactions").insert({
+        user_id: user.id, type: "ATTENDANCE_REWARD", amount: 2,
+        meta: { milestone: newCount, month: monthStr },
+      });
+    }
   }
 
-  // 6. 보너스 체크: 이번달 15회 이상 → +5회 (월 1회 이벤트)
-  const eventBonusMonth = profile?.event_bonus_month;
-  const alreadyGotEventThisMonth = eventBonusMonth && eventBonusMonth >= thisMonth && eventBonusMonth < nextMonth;
+  // 4b. 15회 이벤트 보너스 (월 1회)
+  if (newCount >= 15) {
+    const { error: eventErr } = await admin
+      .from("monthly_reward_grants")
+      .insert({ user_id: user.id, month: monthStr, milestone: 15 });
 
-  if (newMonthlyCount >= 15 && !alreadyGotEventThisMonth) {
-    bonusDelta += 5;
-    bonusMessage = `🏆 이번달 15회 출석 달성! +5회 이벤트 보너스 지급 (이달 말 만료)`;
+    if (!eventErr) {
+      const expiry = endOfMonth(now).toISOString();
+      bonusDelta += 5;
+      bonusMessage = `🏆 이번달 15회 출석 달성! +5회 이벤트 보너스 지급 (이달 말 만료)`;
+      await admin.from("usage_transactions").insert({
+        user_id: user.id, type: "MONTHLY_EVENT", amount: 5,
+        expires_at: expiry, meta: { month: monthStr },
+      });
+    }
   }
 
-  // 7. 프로필 업데이트
-  const updatePayload: Record<string, unknown> = {
-    bonus_uses: (profile?.bonus_uses ?? 0) + bonusDelta,
-  };
-  if (newMonthlyCount >= 15 && !alreadyGotEventThisMonth) {
-    updatePayload.event_bonus_month = thisMonth;
+  // 5. 지갑 업데이트
+  if (bonusDelta > 0) {
+    const { data: currentWallet } = await admin
+      .from("usage_wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const newBalance = (currentWallet?.balance ?? 0) + bonusDelta;
+    await admin.from("usage_wallets")
+      .upsert({ user_id: user.id, balance: newBalance, updated_at: new Date().toISOString() });
   }
 
-  await adminClient.from("profiles").update(updatePayload).eq("id", user.id);
+  const { data: wallet } = await admin
+    .from("usage_wallets")
+    .select("balance")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   return NextResponse.json({
     alreadyCheckedIn: false,
-    monthlyCount: newMonthlyCount,
+    monthlyCount: newCount,
+    walletBalance: wallet?.balance ?? 0,
     bonusDelta,
-    bonusMessage: bonusDelta > 0 ? bonusMessage : null,
-    bonusUses: (profile?.bonus_uses ?? 0) + bonusDelta,
+    bonusMessage,
   });
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "로그인 필요" }, { status: 401 });
 
-  const adminClient = await createAdminClient();
-  const today = new Date().toISOString().split("T")[0];
+  const admin = await createAdminClient();
   const now = new Date();
-  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0];
+  const todayStr = now.toISOString().split("T")[0];
+  const monthStr = getMonthStr(now);
+  const monthStart = `${monthStr}-01`;
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0];
 
-  const [{ data: todayCheckin }, { count: monthlyCount }, { data: profile }] = await Promise.all([
-    adminClient.from("daily_checkins").select("id").eq("user_id", user.id).eq("checked_in_date", today).maybeSingle(),
-    adminClient.from("daily_checkins").select("*", { count: "exact", head: true }).eq("user_id", user.id).gte("checked_in_date", thisMonth).lt("checked_in_date", nextMonth),
-    adminClient.from("profiles").select("bonus_uses, event_bonus_month, free_daily_limit, subscription_end, subscription_plan").eq("id", user.id).single(),
+  const [
+    { data: todayLog },
+    { count: monthlyCount },
+    { data: wallet },
+    { data: activeSub },
+  ] = await Promise.all([
+    admin.from("attendance_logs").select("id").eq("user_id", user.id).eq("attended_date", todayStr).maybeSingle(),
+    admin.from("attendance_logs").select("*", { count: "exact", head: true }).eq("user_id", user.id).gte("attended_date", monthStart).lt("attended_date", nextMonthStart),
+    admin.from("usage_wallets").select("balance").eq("user_id", user.id).maybeSingle(),
+    admin.from("subscriptions").select("plan_id, end_at").eq("user_id", user.id).eq("status", "active").gt("end_at", now.toISOString()).order("end_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
-  const isSubscribed = profile?.subscription_end && new Date(profile.subscription_end) > now;
-
   return NextResponse.json({
-    checkedInToday: !!todayCheckin,
+    checkedInToday: !!todayLog,
     monthlyCount: monthlyCount ?? 0,
-    bonusUses: profile?.bonus_uses ?? 0,
-    freeDailyLimit: profile?.free_daily_limit ?? 3,
-    isSubscribed: !!isSubscribed,
-    subscriptionPlan: profile?.subscription_plan ?? null,
-    subscriptionEnd: profile?.subscription_end ?? null,
+    walletBalance: wallet?.balance ?? 0,
+    isSubscribed: !!activeSub,
+    subscriptionPlan: activeSub?.plan_id ?? null,
+    subscriptionEnd: activeSub?.end_at ?? null,
   });
 }
