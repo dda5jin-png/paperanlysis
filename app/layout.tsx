@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   verification: {
-    google: "YOUR_GOOGLE_VERIFICATION_CODE", // Google Search Console에서 발급받은 코드로 교체
+    google: "jfTt1swt2M-U__n83O71JdxZoaOoe9J9gMBeV9ygPiA",
   },
   other: {
     "naver-site-verification": "YOUR_NAVER_VERIFICATION_CODE", // Naver Search Advisor에서 발급받은 코드로 교체
