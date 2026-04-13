@@ -1,0 +1,4 @@
+# Google AdSense 승인 후 아래 줄을 실제 정보로 교체하세요.
+# AdSense 대시보드 > 사이트 > ads.txt 탭에서 정확한 줄을 복사해 붙여넣으면 됩니다.
+# 예시 형식:
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

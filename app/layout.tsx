@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paper-radar.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paperanalysis.cloud';
 
 export const metadata: Metadata = {
   title: "논문분석기 | 논문 분석·요약·구조화 서비스",
@@ -36,8 +36,11 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
   },
+  verification: {
+    google: "YOUR_GOOGLE_VERIFICATION_CODE", // Google Search Console에서 발급받은 코드로 교체
+  },
   other: {
-    "naver-site-verification": "YOUR_NAVER_VERIFICATION_CODE", // 사용자 입력 필요
+    "naver-site-verification": "YOUR_NAVER_VERIFICATION_CODE", // Naver Search Advisor에서 발급받은 코드로 교체
   },
 };
 
@@ -68,7 +71,10 @@ export default function RootLayout({
           <footer className="border-t border-slate-200 bg-white py-8 no-print">
             <div className="container mx-auto px-6 text-center">
               <p className="text-sm font-bold text-slate-900">논문분석기 (Paper Analysis)</p>
-              <p className="mt-1 text-xs text-slate-500">© 2025 Paper Analysis. All rights reserved.</p>
+              <p className="mt-1 text-xs text-slate-500">© 2026 Paper Analysis. All rights reserved.</p>
+              <p className="mt-1 text-xs text-slate-400">
+                <a href="/privacy" className="hover:underline">개인정보처리방침</a>
+              </p>
             </div>
           </footer>
         </div>
