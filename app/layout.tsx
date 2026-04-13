@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     google: "jfTt1swt2M-U__n83O71JdxZoaOoe9J9gMBeV9ygPiA",
   },
   other: {
-    "naver-site-verification": "YOUR_NAVER_VERIFICATION_CODE", // Naver Search Advisor에서 발급받은 코드로 교체
+    "naver-site-verification": "102dc42f14f723c43ee92fc64035fba91dcb8b4f",
   },
 };
 
