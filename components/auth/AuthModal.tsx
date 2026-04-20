@@ -74,7 +74,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  };
+
+  const handleKakaoLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   };
 
@@ -107,10 +114,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* Social Login */}
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl hover:bg-slate-50 hover:border-slate-200 transition-all font-black text-slate-700 shadow-sm mb-6"
+            className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl hover:bg-slate-50 hover:border-slate-200 transition-all font-black text-slate-700 shadow-sm mb-3"
           >
             <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
             Google 계정으로 계속하기
+          </button>
+
+          <button
+            onClick={handleKakaoLogin}
+            className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-[#FEE500] border-2 border-[#FEE500] rounded-2xl hover:brightness-95 active:scale-[0.99] transition-all font-black text-[#3C1E1E] shadow-sm mb-6"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 3C6.477 3 2 6.58 2 11c0 2.86 1.88 5.37 4.71 6.79-.2.73-.74 2.68-.85 3.1-.13.52.19.52.4.38.17-.12 2.7-1.84 3.79-2.58.63.09 1.28.14 1.95.14 5.523 0 10-3.58 10-8S17.523 3 12 3z" fill="#3C1E1E"/>
+            </svg>
+            카카오 계정으로 계속하기
           </button>
 
           <div className="relative mb-8">
