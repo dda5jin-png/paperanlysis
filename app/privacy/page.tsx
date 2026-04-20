@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <div className="container mx-auto max-w-3xl px-6 py-16">
       <h1 className="mb-8 text-3xl font-bold text-slate-900">개인정보처리방침</h1>
-      <p className="mb-6 text-sm text-slate-500">최종 수정일: 2026년 4월 13일</p>
+      <p className="mb-6 text-sm text-slate-500">최종 수정일: 2026년 4월 20일</p>
 
       <div className="space-y-8 text-slate-700 leading-relaxed">
         <section>
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
           <h2 className="mb-3 text-xl font-semibold text-slate-800">2. 수집하는 개인정보 항목</h2>
           <p>서비스는 아래 항목의 개인정보를 수집합니다.</p>
           <ul className="mt-3 list-disc pl-6 space-y-1">
-            <li><strong>필수 항목:</strong> 이메일 주소, 소셜 로그인 제공자(Google 등)의 고유 식별자</li>
+            <li><strong>필수 항목:</strong> 이메일 주소, 소셜 로그인 제공자(Google, Kakao 등)의 고유 식별자</li>
             <li><strong>결제 시:</strong> 결제수단 정보 (토스페이먼츠를 통해 처리되며, 카드번호 등 민감 정보는 서비스가 직접 수집하지 않습니다)</li>
             <li><strong>자동 수집:</strong> 접속 IP, 브라우저 정보, 방문 일시, 서비스 이용 기록</li>
           </ul>
@@ -48,6 +48,14 @@ export default function PrivacyPage() {
             <li>대금 결제 및 재화 공급 기록: 5년 (전자상거래법)</li>
             <li>소비자 불만 또는 분쟁 처리 기록: 3년 (전자상거래법)</li>
           </ul>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-xl font-semibold text-slate-800">3-1. 업로드 논문 파일 및 분석 결과</h2>
+          <p>
+            회원이 업로드한 논문 파일과 분석 결과는 서고 기능 제공을 위해 저장될 수 있습니다.
+            이용자는 서고에서 저장된 논문을 삭제할 수 있으며, 삭제 요청 시 관련 데이터는 서비스 운영상 필요한 로그를 제외하고 파기합니다.
+          </p>
         </section>
 
         <section>

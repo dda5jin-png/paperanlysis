@@ -72,8 +72,10 @@ export default function RootLayout({
             <div className="container mx-auto px-6 text-center">
               <p className="text-sm font-bold text-slate-900">논문분석기 (Paper Analysis)</p>
               <p className="mt-1 text-xs text-slate-500">© 2026 Paper Analysis. All rights reserved.</p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
+                <a href="/terms" className="hover:underline">이용약관</a>
                 <a href="/privacy" className="hover:underline">개인정보처리방침</a>
+                <a href="/refund" className="hover:underline">환불정책</a>
               </p>
             </div>
           </footer>

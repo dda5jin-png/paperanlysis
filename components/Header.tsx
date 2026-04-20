@@ -110,9 +110,7 @@ export default function Header() {
             <NavLink href="/" active={pathname === "/"}>논문 분석</NavLink>
             <NavLink href="/library" active={pathname === "/library"}>서고 & 비교</NavLink>
             <NavLink href="/pricing" active={pathname === "/pricing"}>요금제</NavLink>
-            <div className="ml-2 px-3 py-1.5 text-[11px] font-semibold rounded-full bg-slate-100 text-slate-400 cursor-default">
-              연구 아이디어 (준비 중)
-            </div>
+            <NavLink href="/ideas" active={pathname === "/ideas"}>연구 아이디어</NavLink>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -170,6 +168,10 @@ export default function Header() {
                       onClick={() => { router.push("/library"); setIsProfileOpen(false); }}
                       className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                     >내 논문 서고</button>
+                    <button
+                      onClick={() => { router.push("/ideas"); setIsProfileOpen(false); }}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                    >연구 아이디어</button>
                     <button
                       onClick={() => { router.push("/pricing"); setIsProfileOpen(false); }}
                       className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-50 transition-colors"
