@@ -85,7 +85,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     await supabase.auth.signInWithOAuth({
       provider: "kakao",
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        scopes: "profile_nickname",
+      },
     });
   };
 
