@@ -7,6 +7,7 @@ import { RotateCcw, Info, Sparkles, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import Hero from "@/components/Hero";
+import ResearchGuide from "@/components/landing/ResearchGuide";
 import PdfUploader from "@/components/ui/PdfUploader";
 import AnalysisProgress from "@/components/ui/AnalysisProgress";
 import AnalysisResult from "@/components/analyzer/AnalysisResult";
@@ -148,8 +149,9 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Hero />
+      <ResearchGuide />
 
-      <div className="container mx-auto px-6 pb-24 -mt-12 relative z-10">
+      <div className="container mx-auto px-6 py-16 relative z-10">
         <div className="max-w-3xl mx-auto">
 
           {/* 비회원 안내 배너 */}
@@ -289,6 +291,24 @@ export default function HomePage() {
                   <RotateCcw className="h-4 w-4" /> 새 논문 분석
                 </button>
               </div>
+
+              {/* 넛지: 분석 완료 후 비회원 가입 유도 */}
+              {!session && (
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-8 text-center shadow-lg shadow-blue-200/50 mb-6">
+                  <h3 className="text-xl md:text-2xl font-black text-white mb-2">이 완벽한 분석 결과를 잃어버리지 마세요!</h3>
+                  <p className="text-blue-100 mb-6 text-sm md:text-base">
+                    지금 무료로 가입하시면 이 결과가 내 서고에 자동 저장되며, <br className="hidden md:block" />
+                    <strong>매일 3개</strong>의 논문을 무료로 정밀 분석하실 수 있습니다.
+                  </p>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
+                    className="inline-flex items-center justify-center px-6 py-3 bg-white text-blue-600 font-black rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95"
+                  >
+                    3초 만에 무료 회원가입
+                  </button>
+                </div>
+              )}
+
               <AnalysisResult data={state.result} />
             </div>
           )}

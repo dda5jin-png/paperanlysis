@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
+import Script from "next/script";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paperanalysis.cloud';
 
@@ -61,6 +62,12 @@ export default function RootLayout({
     <html lang="ko">
       <head>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+        <Script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=pub-5425413650163755`}
+          crossOrigin="anonymous"
+          strategy="lazyOnload"
+        />
       </head>
       <body className="min-h-screen bg-slate-50 font-[Pretendard] text-slate-900 antialiased">
         <div className="flex min-h-screen flex-col">
