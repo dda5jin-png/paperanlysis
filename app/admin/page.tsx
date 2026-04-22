@@ -20,7 +20,8 @@ import {
   History,
   Plus,
   Minus,
-  Settings2
+  Settings2,
+  Archive
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { UserProfile, UsageLog } from "@/types/user";
@@ -109,6 +110,13 @@ export default function AdminDashboard() {
         </div>
         
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push("/admin/archive")}
+            className="inline-flex items-center gap-2 rounded-[20px] bg-slate-900 px-5 py-3.5 text-sm font-black text-white shadow-sm hover:bg-slate-800"
+          >
+            <Archive className="h-4 w-4" />
+            아카이브 운영
+          </button>
           <div className="relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
