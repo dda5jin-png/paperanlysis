@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
+import { Footer } from "@/components/layout/Footer";
 import Script from "next/script";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paperanalysis.cloud';
@@ -75,17 +76,7 @@ export default function RootLayout({
           <main className="flex-1">
             {children}
           </main>
-          <footer className="border-t border-slate-200 bg-white py-8 no-print">
-            <div className="container mx-auto px-6 text-center">
-              <p className="text-sm font-bold text-slate-900">논문분석기 (Paper Analysis)</p>
-              <p className="mt-1 text-xs text-slate-500">© 2026 Paper Analysis. All rights reserved.</p>
-              <p className="mt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
-                <a href="/terms" className="hover:underline">이용약관</a>
-                <a href="/privacy" className="hover:underline">개인정보처리방침</a>
-                <a href="/refund" className="hover:underline">환불정책</a>
-              </p>
-            </div>
-          </footer>
+          <Footer />
         </div>
       </body>
     </html>

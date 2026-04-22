@@ -1,319 +1,273 @@
-"use client";
-
-export const dynamic = "force-dynamic";
-
-import { useState, useEffect } from "react";
-import { RotateCcw, Info, Sparkles, LogIn } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-import Hero from "@/components/Hero";
-import ResearchGuide from "@/components/landing/ResearchGuide";
-import PdfUploader from "@/components/ui/PdfUploader";
-import AnalysisProgress from "@/components/ui/AnalysisProgress";
-import AnalysisResult from "@/components/analyzer/AnalysisResult";
-import { supabase } from "@/lib/supabase";
-import { DEFAULT_MODEL_ID } from "@/lib/models";
-
-import type { AnalysisState, PaperAnalysis } from "@/types/paper";
-
-const GUEST_USED_KEY = "paper_guest_used"; // localStorage 키
-
-const IDLE_STATE: AnalysisState = {
-  status: "idle",
-  progress: 0,
-  message: "대기 중",
-  selectedModel: DEFAULT_MODEL_ID,
-};
+import Link from "next/link";
+import { Container } from "@/components/ui/Container";
+import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Button } from "@/components/ui/Button";
+import { FaqRow } from "@/components/ui/FaqRow";
+import {
+  GUIDE_ARTICLES,
+  GUIDE_CATEGORIES,
+  PRICING_PLANS,
+  FAQ_ITEMS,
+} from "@/lib/guide-data";
 
 export default function HomePage() {
-  const router = useRouter();
-  const [state, setState] = useState<AnalysisState>(IDLE_STATE);
-  const [session, setSession] = useState<any>(null);
-  const [guestUsed, setGuestUsed] = useState(false);
-
-  // 로그인 상태 + 비회원 사용 여부 확인
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    if (typeof window !== "undefined") {
-      setGuestUsed(localStorage.getItem(GUEST_USED_KEY) === "true");
-    }
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const updateState = (patch: Partial<AnalysisState>) =>
-    setState((prev) => ({ ...prev, ...patch }));
-
-  const handleUpload = async (file: File) => {
-    const isGuest = !session;
-
-    // 비회원이 이미 1회 사용한 경우
-    if (isGuest && guestUsed) {
-      setState((prev) => ({
-        ...prev,
-        status: "error",
-        progress: 0,
-        message: "분석 불가",
-        error: "비회원은 1회만 무료로 분석할 수 있습니다. 회원가입 후 하루 3회 무료 이용이 가능합니다.",
-        errorCode: "LOGIN_REQUIRED",
-      }));
-      return;
-    }
-
-    try {
-      updateState({
-        status: "uploading",
-        progress: 10,
-        message: "파일을 업로드하는 중…",
-        lastFile: file,
-      });
-
-      const formData = new FormData();
-      formData.append("model", state.selectedModel);
-      formData.append("filename", file.name);
-
-      const headers: Record<string, string> = {};
-
-      // 비회원은 guest-uploads/, 로그인 사용자는 uploads/ 경로 사용
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = isGuest
-        ? `guest-uploads/${fileName}`
-        : `uploads/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("papers")
-        .upload(filePath, file);
-
-      if (uploadError) {
-        throw new Error(`업로드 실패: ${uploadError.message}`);
-      }
-
-      formData.append("storagePath", filePath);
-      if (isGuest) headers["x-guest-token"] = "guest-once";
-
-      updateState({ status: "parsing", progress: 30, message: "PDF에서 텍스트를 추출하는 중…" });
-
-      const res = await fetch("/api/parse-pdf", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-        headers,
-      });
-
-      updateState({
-        status: "analyzing",
-        progress: 65,
-        message: "AI가 논문 구조를 분석하는 중… (최대 40초 소요)",
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw { message: json.error ?? "알 수 없는 오류", errorCode: json.errorCode };
-      }
-
-      // 비회원 사용 기록 저장
-      if (isGuest) {
-        localStorage.setItem(GUEST_USED_KEY, "true");
-        setGuestUsed(true);
-      }
-
-      setState((prev) => ({
-        ...prev,
-        status: "done",
-        progress: 100,
-        message: `분석 완료`,
-        result: json.result as PaperAnalysis,
-      }));
-    } catch (err: any) {
-      setState((prev) => ({
-        ...prev,
-        status: "error",
-        progress: 0,
-        message: "분석 실패",
-        error: err.message || String(err),
-        errorCode: err.errorCode || "AI_ERROR",
-      }));
-    }
-  };
-
-  const handleRetryWithGemini = () => {
-    if (!state.lastFile) return;
-    setState((prev) => ({ ...prev, selectedModel: "gemini-2.0-flash" }));
-    handleUpload(state.lastFile);
-  };
-
-  const handleReset = () => setState(IDLE_STATE);
-  const isLoading = ["uploading", "parsing", "analyzing"].includes(state.status);
-
   return (
-    <div className="flex flex-col min-h-screen">
-      <Hero />
-      <ResearchGuide />
-
-      <div className="container mx-auto px-6 py-16 relative z-10">
-        <div className="max-w-3xl mx-auto">
-
-          {/* 비회원 안내 배너 */}
-          {!session && !guestUsed && state.status === "idle" && (
-            <div className="mb-6 flex items-center justify-between gap-4 px-6 py-4 bg-blue-50 border border-blue-100 rounded-2xl">
-              <p className="text-sm font-bold text-blue-800">
-                🎉 비회원도 1회 무료로 논문을 분석할 수 있습니다. 회원가입하면 하루 3회 + 서고 기능을 이용할 수 있어요.
-              </p>
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
-                className="shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl hover:bg-blue-700 transition-all"
-              >
-                회원가입
-              </button>
+    <main>
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(29,78,216,0.08),transparent_60%)]" />
+        <Container className="pt-16 pb-20 lg:pt-24 lg:pb-28">
+          <div className="max-w-3xl">
+            <SectionLabel>논문 작성 · 분석 플랫폼</SectionLabel>
+            <h1 className="mt-5 text-[34px] sm:text-[44px] lg:text-[56px] leading-[1.15] font-bold tracking-tight text-ink-900">
+              논문을 이해하고, 정리하고,
+              <br className="hidden sm:inline" /> 활용하는 가장 깔끔한 방법.
+            </h1>
+            <p className="mt-6 text-[17px] sm:text-[18px] leading-[1.75] text-ink-700 max-w-2xl">
+              석·박사 과정과 실무 연구자를 위해 준비한 논문 작성 가이드와,
+              업로드한 PDF를 섹션별로 구조화해 정리해주는 분석 도구를 한 곳에서 제공합니다.
+            </p>
+            <div className="mt-9 flex flex-col sm:flex-row gap-3">
+              <Link href="/analyzer">
+                <Button size="lg">논문 업로드 분석 시작하기</Button>
+              </Link>
+              <Link href="/guides">
+                <Button variant="secondary" size="lg">
+                  논문작성 가이드 보기
+                </Button>
+              </Link>
             </div>
-          )}
-
-          {/* 비회원 사용 완료 배너 */}
-          {!session && guestUsed && state.status === "idle" && (
-            <div className="mb-6 flex items-center justify-between gap-4 px-6 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
-              <p className="text-sm font-bold text-amber-800">
-                무료 체험 1회를 사용했습니다. 계속 이용하려면 회원가입 후 로그인 해주세요.
-              </p>
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
-                className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white text-xs font-black rounded-xl hover:bg-amber-700 transition-all"
-              >
-                <LogIn className="w-3.5 h-3.5" /> 회원가입 / 로그인
-              </button>
+            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-500">
+              <span>· 회원가입 없이 체험 가능</span>
+              <span>· PDF 텍스트 자동 추출</span>
+              <span>· 섹션별 요약 · 발표자료용 정리</span>
             </div>
-          )}
+          </div>
+        </Container>
+      </section>
 
-          {/* 업로드 영역 */}
-          {(state.status === "idle" || state.status === "error") && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-12">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900">논문 정밀 분석하기</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      PDF를 올리면 AI가 핵심 내용을 구조적으로 요약해드립니다.
-                    </p>
-                  </div>
-                  <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                    <Sparkles className="h-6 w-6" />
-                  </div>
-                </div>
-                <PdfUploader
-                  onUpload={handleUpload}
-                  isLoading={isLoading}
-                  disabled={!session && guestUsed}
-                />
-              </div>
-
-              {/* 에러 표시 */}
-              {state.status === "error" && (
-                <div className="bg-red-50 border border-red-100 rounded-3xl p-8">
-                  <div className="flex items-start gap-3 mb-5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 shrink-0 mt-0.5">
-                      <Info className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-red-900 mb-1">분석 중 문제가 발생했습니다</h3>
-                      <p className="text-sm text-red-700/80 leading-relaxed">{state.error}</p>
-                    </div>
-                  </div>
-
-                  {/* 에러 코드별 안내 */}
-                  {state.errorCode === "LOGIN_REQUIRED" && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-4">
-                      <p className="text-sm text-blue-800 font-medium">회원가입하면 하루 3회 무료 + 서고 저장 기능을 이용할 수 있어요.</p>
-                      <button
-                        onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
-                        className="shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl"
-                      >
-                        회원가입 / 로그인
-                      </button>
-                    </div>
-                  )}
-                  {state.errorCode === "LIMIT_EXCEEDED" && (
-                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-4">
-                      <p className="text-sm text-amber-800 font-medium">오늘 한도를 사용했어요. 크레딧을 구매하거나 내일 다시 이용하세요.</p>
-                      <button
-                        onClick={() => router.push("/pricing")}
-                        className="shrink-0 px-4 py-2 bg-amber-600 text-white text-xs font-black rounded-xl"
-                      >
-                        크레딧 충전
-                      </button>
-                    </div>
-                  )}
-                  {state.errorCode === "PROFILE_SETUP_REQUIRED" && (
-                    <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                      <p className="text-sm text-slate-600 font-medium">🔧 서버 초기 설정이 필요합니다. 관리자에게 문의해 주세요.</p>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={handleReset}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-red-200 text-red-700 font-bold rounded-xl hover:bg-red-50 transition-all active:scale-95"
-                    >
-                      <RotateCcw className="h-4 w-4" /> 다시 시도
-                    </button>
-                    {state.lastFile && state.errorCode !== "LIMIT_EXCEEDED" && state.errorCode !== "LOGIN_REQUIRED" && state.selectedModel !== "gemini-2.0-flash" && (
-                      <button
-                        onClick={handleRetryWithGemini}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-md active:scale-95"
-                      >
-                        <Sparkles className="h-4 w-4" /> Gemini로 재시도
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+      {/* 두 갈래 안내 */}
+      <section className="border-y border-ink-200 bg-white">
+        <Container className="py-16 grid md:grid-cols-2 gap-6">
+          <Link
+            href="/guides"
+            className="group block rounded-2xl border border-ink-200 p-8 hover:border-brand-600 hover:shadow-sm transition"
+          >
+            <div className="text-sm text-brand-700 font-semibold">1. 읽기</div>
+            <div className="mt-3 text-2xl font-bold tracking-tight">논문작성 가이드</div>
+            <p className="mt-3 text-ink-700 leading-7">
+              주제 설정부터 통계 해석, 발표자료 정리까지. 실무에 바로 쓸 수 있는
+              논문 작성 자료를 카테고리별로 정리했습니다.
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 text-brand-700 font-medium group-hover:gap-3 transition-all">
+              가이드 허브로 이동
+              <span>→</span>
             </div>
-          )}
-
-          {/* 진행 상태 */}
-          {isLoading && (
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 sm:p-12">
-              <AnalysisProgress status={state.status} progress={state.progress} message={state.message} />
+          </Link>
+          <Link
+            href="/analyzer"
+            className="group block rounded-2xl border border-ink-200 p-8 hover:border-brand-600 hover:shadow-sm transition"
+          >
+            <div className="text-sm text-brand-700 font-semibold">2. 분석</div>
+            <div className="mt-3 text-2xl font-bold tracking-tight">논문분석기</div>
+            <p className="mt-3 text-ink-700 leading-7">
+              PDF를 업로드하면 연구목적·방법·결과·결론을 섹션별로 자동 정리해드립니다.
+              결과는 내 서고에 저장하거나 발표자료용으로 내보낼 수 있습니다.
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 text-brand-700 font-medium group-hover:gap-3 transition-all">
+              지금 업로드하기
+              <span>→</span>
             </div>
-          )}
+          </Link>
+        </Container>
+      </section>
 
-          {/* 분석 결과 */}
-          {state.status === "done" && state.result && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between no-print">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <p className="text-sm font-bold text-slate-500">분석 완료</p>
-                </div>
-                <button
-                  onClick={handleReset}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all active:scale-95"
+      {/* 인기 가이드 미리보기 */}
+      <section>
+        <Container className="py-16">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <SectionLabel>가이드</SectionLabel>
+              <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">
+                많이 읽힌 가이드
+              </h2>
+            </div>
+            <Link
+              href="/guides"
+              className="text-sm text-brand-700 hover:text-brand-800 font-medium hidden sm:inline"
+            >
+              전체 보기 →
+            </Link>
+          </div>
+          <div className="mt-10 divide-y divide-ink-200 border-t border-b border-ink-200">
+            {GUIDE_ARTICLES.slice(0, 4).map((a) => {
+              const category = GUIDE_CATEGORIES.find((c) => c.slug === a.category);
+              return (
+                <Link
+                  key={a.slug}
+                  href={`/guides/${a.slug}`}
+                  className="block py-6 sm:py-7 hover:bg-ink-50/60 -mx-5 px-5 sm:-mx-6 sm:px-6 transition"
                 >
-                  <RotateCcw className="h-4 w-4" /> 새 논문 분석
-                </button>
+                  <div className="text-xs text-brand-700 font-semibold">{category?.name}</div>
+                  <div className="mt-2 text-lg sm:text-xl font-semibold text-ink-900 leading-[1.45]">
+                    {a.title}
+                  </div>
+                  <div className="mt-2 text-ink-500 text-sm leading-6">{a.lead}</div>
+                  <div className="mt-3 text-xs text-ink-500">
+                    업데이트 {a.updatedAt} · 읽는 데 {a.readingMinutes}분
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          <div className="mt-6 sm:hidden">
+            <Link href="/guides" className="text-sm text-brand-700 font-medium">
+              전체 가이드 보기 →
+            </Link>
+          </div>
+        </Container>
+      </section>
+
+      {/* 분석기 기능 소개 */}
+      <section className="bg-ink-900 text-white">
+        <Container className="py-20">
+          <SectionLabel>
+            <span className="text-brand-100">분석기</span>
+          </SectionLabel>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            논문을 섹션 단위로 정리해드립니다
+          </h2>
+          <p className="mt-4 text-white/70 max-w-2xl leading-7">
+            PDF에서 텍스트를 추출하고, 학술 논문의 일반적인 구조(IMRaD)에 맞춰 각 섹션의 핵심을 정리합니다.
+            결과는 복사하거나 내보내 바로 사용할 수 있습니다.
+          </p>
+          <div className="mt-12 grid md:grid-cols-3 gap-10">
+            {[
+              { t: "섹션별 요약", d: "연구목적·연구방법·결과·결론을 각각의 블록으로 정리합니다." },
+              { t: "발표자료용 정리", d: "슬라이드 1~3장 분량의 핵심 메시지 요약을 제공합니다." },
+              { t: "내 서고 보관", d: "분석 결과를 서고에 저장하고, 제목·키워드로 다시 찾을 수 있습니다." },
+            ].map((f, i) => (
+              <div key={i} className="border-t border-white/10 pt-6">
+                <div className="text-sm text-brand-100 font-semibold">0{i + 1}</div>
+                <div className="mt-3 text-xl font-semibold">{f.t}</div>
+                <p className="mt-3 text-white/70 leading-7">{f.d}</p>
               </div>
+            ))}
+          </div>
+          <div className="mt-12">
+            <Link href="/analyzer">
+              <Button variant="dark" size="lg" className="bg-white text-ink-900 hover:bg-ink-50">
+                분석기 사용해보기
+              </Button>
+            </Link>
+          </div>
+        </Container>
+      </section>
 
-              {/* 넛지: 분석 완료 후 비회원 가입 유도 */}
-              {!session && (
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-8 text-center shadow-lg shadow-blue-200/50 mb-6">
-                  <h3 className="text-xl md:text-2xl font-black text-white mb-2">이 완벽한 분석 결과를 잃어버리지 마세요!</h3>
-                  <p className="text-blue-100 mb-6 text-sm md:text-base">
-                    지금 무료로 가입하시면 이 결과가 내 서고에 자동 저장되며, <br className="hidden md:block" />
-                    <strong>매일 3개</strong>의 논문을 무료로 정밀 분석하실 수 있습니다.
-                  </p>
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-white text-blue-600 font-black rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95"
-                  >
-                    3초 만에 무료 회원가입
-                  </button>
-                </div>
-              )}
+      {/* 사용 흐름 */}
+      <section>
+        <Container className="py-20">
+          <SectionLabel>사용 흐름</SectionLabel>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">
+            업로드 → 분석 → 활용
+          </h2>
+          <div className="mt-12 grid md:grid-cols-3 gap-12">
+            {[
+              { n: "1", t: "업로드", d: "PDF 파일을 드래그하거나 클릭으로 업로드합니다. 텍스트 추출이 가능한 한글·영문 논문을 지원합니다." },
+              { n: "2", t: "분석", d: "텍스트 추출 → 섹션 인식 → 요약 생성 순서로 진행됩니다. 평균 분석 시간은 논문 길이에 따라 다릅니다." },
+              { n: "3", t: "활용", d: "섹션별 요약과 발표자료용 정리를 복사하거나 내보낼 수 있습니다. 결과는 서고에 보관됩니다." },
+            ].map((s, i) => (
+              <div key={i}>
+                <div className="text-5xl font-bold text-brand-700 tracking-tighter">{s.n}</div>
+                <div className="mt-4 text-xl font-semibold">{s.t}</div>
+                <p className="mt-3 text-ink-700 leading-7">{s.d}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </section>
 
-              <AnalysisResult data={state.result} />
+      {/* 요금제 요약 */}
+      <section className="bg-ink-50">
+        <Container className="py-20">
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <div>
+              <SectionLabel>요금제</SectionLabel>
+              <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">
+                필요한 만큼만 씁니다
+              </h2>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
+            <Link
+              href="/pricing"
+              className="text-sm text-brand-700 hover:text-brand-800 font-medium"
+            >
+              자세히 보기 →
+            </Link>
+          </div>
+          <div className="mt-10 grid md:grid-cols-3 gap-4">
+            {PRICING_PLANS.map((p) => (
+              <div
+                key={p.id}
+                className={`rounded-2xl bg-white border p-8 ${p.highlight ? "border-brand-700 ring-1 ring-brand-700" : "border-ink-200"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-semibold">{p.name}</div>
+                  {p.highlight && (
+                    <span className="text-xs font-semibold text-brand-700 bg-brand-50 px-2 py-1 rounded">
+                      추천
+                    </span>
+                  )}
+                </div>
+                <div className="mt-4 flex items-end gap-1">
+                  <div className="text-3xl font-bold tracking-tight">{p.price}</div>
+                  <div className="text-ink-500 pb-1">{p.priceSuffix}</div>
+                </div>
+                <p className="mt-2 text-sm text-ink-500">{p.desc}</p>
+                <ul className="mt-6 space-y-2 text-sm text-ink-700">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex gap-2">
+                      <span className="text-brand-700">✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* FAQ */}
+      <section>
+        <Container className="py-20">
+          <SectionLabel>자주 묻는 질문</SectionLabel>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">FAQ</h2>
+          <div className="mt-10 max-w-3xl divide-y divide-ink-200 border-t border-b border-ink-200">
+            {FAQ_ITEMS.map((item, i) => (
+              <FaqRow key={i} q={item.q} a={item.a} />
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* 하단 CTA */}
+      <section className="bg-brand-700 text-white">
+        <Container className="py-16 text-center">
+          <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            논문 하나, 지금 올려보세요
+          </h3>
+          <p className="mt-3 text-white/80">
+            분석 결과를 확인한 뒤 필요하면 서고에 저장하세요. 회원가입 없이도 체험 가능합니다.
+          </p>
+          <div className="mt-8">
+            <Link href="/analyzer">
+              <Button variant="dark" size="lg" className="bg-white text-brand-700 hover:bg-brand-50">
+                분석기로 이동
+              </Button>
+            </Link>
+          </div>
+        </Container>
+      </section>
+    </main>
   );
 }
