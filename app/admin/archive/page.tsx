@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, CheckCircle2, Clock, CopyCheck, FileText, Loader2, Plus, Send } from "lucide-react";
+import { FileText, Loader2, Plus, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ArchiveListItem = {
@@ -18,6 +18,23 @@ type ArchiveListItem = {
   updated_at: string;
   published_at: string | null;
 };
+
+const categoryOptions = [
+  ["topic", "주제 설정"],
+  ["literature-review", "선행연구"],
+  ["research-question", "연구질문"],
+  ["methodology", "방법론"],
+  ["citation", "참고문헌"],
+  ["presentation", "발표자료"],
+  ["paper-structure", "논문 구조"],
+];
+
+function formatError(error: string) {
+  if (error.includes("archive_contents") || error.includes("schema cache")) {
+    return "archive_contents 테이블이 아직 준비되지 않았습니다. Supabase SQL Editor에서 supabase/archive-content-schema.sql 파일 내용을 실행한 뒤 새로고침해 주세요.";
+  }
+  return error;
+}
 
 export default function AdminArchivePage() {
   const router = useRouter();
@@ -34,7 +51,7 @@ export default function AdminArchivePage() {
     const response = await fetch("/api/admin/archive", { credentials: "include" });
     const json = await response.json();
     if (!response.ok) {
-      setError(json.error || "목록을 불러오지 못했습니다.");
+      setError(formatError(json.error || "목록을 불러오지 못했습니다."));
     } else {
       setContents(json.contents || []);
     }
@@ -61,7 +78,7 @@ export default function AdminArchivePage() {
     const json = await response.json();
     setGenerating(false);
     if (!response.ok) {
-      setError(json.error || "가이드 생성에 실패했습니다.");
+      setError(formatError(json.error || "가이드 생성에 실패했습니다."));
       return;
     }
     router.push(`/admin/archive/content/${json.id}`);
@@ -69,57 +86,56 @@ export default function AdminArchivePage() {
 
   return (
     <main className="min-h-screen bg-ink-50">
-      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">
-              <Archive className="h-3.5 w-3.5" />
-              Research Writing Guide Archive
+      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
+        <header className="rounded-[32px] border border-ink-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="grid gap-8 lg:grid-cols-[1fr_420px] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-700">
+                Admin
+              </p>
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-ink-900">
+                아카이브 콘텐츠 운영
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-700">
+                가이드를 생성하고, 검토 후 웹 게시와 네이버 블로그 배포 상태만 관리합니다.
+                복잡한 지표보다 현재 처리해야 할 콘텐츠에 집중하도록 정리했습니다.
+              </p>
             </div>
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-ink-900">
-              아카이브 콘텐츠 운영
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-700">
-              AI가 구조화된 한국어 가이드와 네이버 블로그용 요약을 생성합니다.
-              운영자는 검토 후 웹 게시와 네이버 배포 상태를 관리합니다.
-            </p>
-          </div>
 
-          <div className="rounded-3xl border border-ink-200 bg-white p-4 shadow-sm lg:w-[460px]">
-            <div className="grid gap-3 sm:grid-cols-[1fr_150px]">
-              <input
-                value={topic}
-                onChange={(event) => setTopic(event.target.value)}
-                placeholder="주제 입력: 예) 연구질문 설정"
-                className="h-11 rounded-xl border border-ink-200 px-4 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
-              />
-              <select
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                className="h-11 rounded-xl border border-ink-200 px-3 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+            <div className="rounded-2xl border border-ink-200 bg-ink-50 p-4">
+              <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                <input
+                  value={topic}
+                  onChange={(event) => setTopic(event.target.value)}
+                  placeholder="주제 입력: 예) 연구질문 설정"
+                  className="h-11 rounded-xl border border-ink-200 px-4 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+                />
+                <select
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                  className="h-11 rounded-xl border border-ink-200 px-3 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+                >
+                  {categoryOptions.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-900 px-4 text-sm font-black text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <option value="topic">주제 설정</option>
-                <option value="literature-review">선행연구</option>
-                <option value="research-question">연구질문</option>
-                <option value="methodology">방법론</option>
-                <option value="citation">참고문헌</option>
-                <option value="presentation">발표자료</option>
-                <option value="paper-structure">논문 구조</option>
-              </select>
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Generate New Guide
+              </button>
             </div>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-900 px-4 text-sm font-bold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Generate New Guide
-            </button>
           </div>
-        </div>
+        </header>
 
         {error && (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">
             {error}
           </div>
         )}
@@ -144,9 +160,12 @@ export default function AdminArchivePage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="overflow-hidden rounded-3xl border border-ink-200 bg-white">
               {contents.map((item) => (
-                <article key={item.id} className="rounded-3xl border border-ink-200 bg-white p-5 shadow-sm">
+                <article
+                  key={item.id}
+                  className="border-b border-ink-200 p-5 last:border-b-0 sm:p-6"
+                >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -154,17 +173,21 @@ export default function AdminArchivePage() {
                         <NaverBadge status={item.naver_status} />
                         <span className="text-xs font-semibold text-ink-500">{item.category}</span>
                       </div>
-                      <h3 className="mt-3 text-lg font-black leading-7 text-ink-900">{item.title}</h3>
+                      <h3 className="mt-3 text-lg font-black leading-7 text-ink-900">
+                        {item.title}
+                      </h3>
                       <p className="mt-1 text-xs text-ink-500">
-                        생성 {new Date(item.created_at).toLocaleString("ko-KR")} · 수정 {new Date(item.updated_at).toLocaleString("ko-KR")}
+                        생성 {new Date(item.created_at).toLocaleString("ko-KR")}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Link href={`/admin/archive/content/${item.id}`} className="rounded-xl border border-ink-200 px-4 py-2 text-sm font-bold text-ink-700 hover:bg-ink-50">
-                        View / Edit
+                      <Link
+                        href={`/admin/archive/content/${item.id}`}
+                        className="rounded-xl border border-ink-200 px-4 py-2 text-sm font-bold text-ink-700 hover:bg-ink-50"
+                      >
+                        View
                       </Link>
-                      <QuickStatusButton id={item.id} status="reviewed" label="Review" icon={<CheckCircle2 className="h-4 w-4" />} onDone={loadContents} />
-                      <QuickStatusButton id={item.id} status="published" label="Publish" icon={<Send className="h-4 w-4" />} onDone={loadContents} />
+                      <QuickStatusButton id={item.id} status="published" label="Publish" onDone={loadContents} />
                     </div>
                   </div>
                 </article>
@@ -179,15 +202,51 @@ export default function AdminArchivePage() {
 
 function StatusBadge({ status }: { status: ArchiveListItem["content_status"] }) {
   const label = { draft: "Draft", reviewed: "Reviewed", published: "Published", archived: "Archived" }[status];
-  return <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", status === "published" ? "bg-emerald-50 text-emerald-700" : status === "reviewed" ? "bg-blue-50 text-blue-700" : "bg-ink-100 text-ink-600")}>{label}</span>;
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-1 text-xs font-bold",
+        status === "published"
+          ? "bg-emerald-50 text-emerald-700"
+          : status === "reviewed"
+            ? "bg-blue-50 text-blue-700"
+            : "bg-ink-100 text-ink-600",
+      )}
+    >
+      {label}
+    </span>
+  );
 }
 
 function NaverBadge({ status }: { status: ArchiveListItem["naver_status"] }) {
   const label = { not_ready: "Naver not ready", ready: "Naver ready", copied: "Copied", distributed: "Distributed" }[status];
-  return <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", status === "distributed" ? "bg-emerald-50 text-emerald-700" : status === "ready" || status === "copied" ? "bg-amber-50 text-amber-700" : "bg-ink-100 text-ink-600")}>{label}</span>;
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-1 text-xs font-bold",
+        status === "distributed"
+          ? "bg-emerald-50 text-emerald-700"
+          : status === "ready" || status === "copied"
+            ? "bg-amber-50 text-amber-700"
+            : "bg-ink-100 text-ink-600",
+      )}
+    >
+      {label}
+    </span>
+  );
 }
 
-function QuickStatusButton({ id, status, label, icon, onDone }: { id: string; status: string; label: string; icon: React.ReactNode; onDone: () => void }) {
+function QuickStatusButton({
+  id,
+  status,
+  label,
+  onDone,
+}: {
+  id: string;
+  status: string;
+  label: string;
+  onDone: () => void;
+}) {
   const [loading, setLoading] = useState(false);
   const update = async () => {
     setLoading(true);
@@ -201,8 +260,12 @@ function QuickStatusButton({ id, status, label, icon, onDone }: { id: string; st
     onDone();
   };
   return (
-    <button onClick={update} disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60">
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+    <button
+      onClick={update}
+      disabled={loading}
+      className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60"
+    >
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
       {label}
     </button>
   );

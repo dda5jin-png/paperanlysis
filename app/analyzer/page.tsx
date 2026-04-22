@@ -145,17 +145,18 @@ export default function AnalyzerPage() {
   const isLoading = ["uploading", "parsing", "analyzing"].includes(state.status);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="container mx-auto px-6 py-12 lg:py-16 relative z-10">
-        <div className="max-w-3xl mx-auto">
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      <div className="container relative z-10 mx-auto px-6 py-10 lg:py-16">
+        <div className="mx-auto max-w-3xl">
           {state.status === "idle" && (
-            <div className="mb-10">
+            <div className="mb-8 text-center">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">논문분석기</p>
-              <h1 className="mt-4 text-3xl sm:text-4xl font-black tracking-tight text-slate-950">
-                PDF를 올리면 섹션별로 정리해드립니다
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
+                PDF 업로드 → 자동 분석
               </h1>
-              <p className="mt-4 text-slate-600 leading-7">
-                기존 분석 기능은 그대로 유지하면서 업로드부터 결과 확인까지 더 차분한 작업 화면으로 정리했습니다.
+              <p className="mx-auto mt-4 max-w-2xl leading-7 text-slate-600">
+                논문 PDF를 올리면 연구목적, 방법, 결과, 결론을 섹션별로 정리합니다.
+                가이드 아카이브와 분리된 분석 전용 작업 공간입니다.
               </p>
             </div>
           )}
@@ -193,12 +194,12 @@ export default function AnalyzerPage() {
           {/* 업로드 영역 */}
           {(state.status === "idle" || state.status === "error") && (
             <div className="space-y-6">
-              <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-12">
-                <div className="flex items-center justify-between mb-8">
+              <div className="rounded-[32px] border border-blue-100 bg-white p-7 shadow-xl shadow-blue-100/50 sm:p-10">
+                <div className="mb-8 flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-black text-slate-900">논문 정밀 분석하기</h2>
+                    <h2 className="text-xl font-black text-slate-900">분석할 PDF 선택</h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      PDF를 올리면 AI가 핵심 내용을 구조적으로 요약해드립니다.
+                      파일을 올리면 바로 텍스트 추출과 구조 분석을 시작합니다.
                     </p>
                   </div>
                   <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
