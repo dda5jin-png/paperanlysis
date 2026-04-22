@@ -107,3 +107,54 @@ create index if not exists idx_archive_contents_tags
   on public.archive_contents using gin(tags);
 
 alter table public.archive_contents enable row level security;
+
+grant select on public.archive_contents to anon;
+grant select, insert, update, delete on public.archive_contents to authenticated;
+grant all on public.archive_contents to service_role;
+
+drop policy if exists "Published archive content is publicly readable"
+  on public.archive_contents;
+create policy "Published archive content is publicly readable"
+  on public.archive_contents
+  for select
+  using (content_status = 'published');
+
+drop policy if exists "Admins can read archive contents"
+  on public.archive_contents;
+create policy "Admins can read archive contents"
+  on public.archive_contents
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role = 'admin'
+    )
+  );
+
+drop policy if exists "Admins can manage archive contents"
+  on public.archive_contents;
+create policy "Admins can manage archive contents"
+  on public.archive_contents
+  for all
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role = 'admin'
+    )
+  );
+
+notify pgrst, 'reload schema';
