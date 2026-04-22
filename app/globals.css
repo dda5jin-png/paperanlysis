@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #fafbfc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01" on, "cv01" on;
+}
+
+/* 긴 글 타이포 (가이드 상세) */
+.prose-ko p {
+  font-size: 17px;
+  line-height: 1.9;
+  color: #1e293b;
+  margin-top: 1.2em;
+}
+.prose-ko h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 3.5rem;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+.prose-ko h3 {
+  font-size: 19px;
+  font-weight: 600;
+  margin-top: 2.25rem;
+  color: #0f172a;
+}
+.prose-ko ul {
+  margin-top: 1em;
+  padding-left: 1.2em;
+}
+.prose-ko ul li {
+  list-style: disc;
+  margin-top: 0.5em;
+  line-height: 1.8;
+  color: #1e293b;
+}
+.prose-ko blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding: 0.25em 0 0.25em 1em;
+  margin-top: 1.6em;
+  color: #475569;
+}
+.prose-ko a {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .prose-ko p {
+    font-size: 16px;
+    line-height: 1.85;
+  }
+  .prose-ko h2 {
+    font-size: 22px;
+    margin-top: 2.75rem;
+  }
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
