@@ -41,13 +41,11 @@ export function GuideDetailClient({ article }: { article: GuideArticle }) {
           <Link href="/guides" className="hover:text-ink-900">
             가이드
           </Link>
-          <span className="mx-2">/</span>
-          {category ? (
-            <Link href={`/categories/${category.slug}`} className="hover:text-ink-900">
-              {category.name}
-            </Link>
-          ) : (
-            <span>카테고리</span>
+          {category && (
+            <>
+              <span className="mx-2">/</span>
+              <span>{category.name}</span>
+            </>
           )}
         </div>
       </Container>

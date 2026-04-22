@@ -30,9 +30,6 @@ export function Footer() {
             items={[
               ["/", "홈"],
               ["/guides", "논문작성 가이드"],
-              ["/categories", "카테고리"],
-              ["/latest", "최신 업데이트"],
-              ["/popular", "인기 가이드"],
               ["/analyzer", "논문분석기"],
               ["/pricing", "요금제"],
             ]}
