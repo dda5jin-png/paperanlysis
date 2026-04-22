@@ -4,10 +4,11 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Button } from "@/components/ui/Button";
 import { FaqRow } from "@/components/ui/FaqRow";
 import {
-  GUIDE_ARTICLES,
   GUIDE_CATEGORIES,
   PRICING_PLANS,
   FAQ_ITEMS,
+  getLatestGuides,
+  getPopularGuides,
 } from "@/lib/guide-data";
 
 export default function HomePage() {
@@ -18,29 +19,30 @@ export default function HomePage() {
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(29,78,216,0.08),transparent_60%)]" />
         <Container className="pt-16 pb-20 lg:pt-24 lg:pb-28">
           <div className="max-w-3xl">
-            <SectionLabel>논문 작성 · 분석 플랫폼</SectionLabel>
+            <SectionLabel>Verified Academic Archive</SectionLabel>
             <h1 className="mt-5 text-[34px] sm:text-[44px] lg:text-[56px] leading-[1.15] font-bold tracking-tight text-ink-900">
-              논문을 이해하고, 정리하고,
-              <br className="hidden sm:inline" /> 활용하는 가장 깔끔한 방법.
+              공신력 있는 원문 기반
+              <br className="hidden sm:inline" /> 논문작성 가이드 아카이브.
             </h1>
             <p className="mt-6 text-[17px] sm:text-[18px] leading-[1.75] text-ink-700 max-w-2xl">
-              석·박사 과정과 실무 연구자를 위해 준비한 논문 작성 가이드와,
-              업로드한 PDF를 섹션별로 구조화해 정리해주는 분석 도구를 한 곳에서 제공합니다.
+              대학 글쓰기 센터, 공식 스타일 가이드, 학술 데이터베이스를 기반으로
+              영어 원문을 확인하고 한국어로 번역·정리합니다. 논문분석기와 함께
+              읽기, 작성, 검토 흐름을 한 곳에서 이어가세요.
             </p>
             <div className="mt-9 flex flex-col sm:flex-row gap-3">
-              <Link href="/analyzer">
-                <Button size="lg">논문 업로드 분석 시작하기</Button>
-              </Link>
               <Link href="/guides">
+                <Button size="lg">가이드 아카이브 보기</Button>
+              </Link>
+              <Link href="/analyzer">
                 <Button variant="secondary" size="lg">
-                  논문작성 가이드 보기
+                  논문분석기 사용하기
                 </Button>
               </Link>
             </div>
             <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-500">
-              <span>· 회원가입 없이 체험 가능</span>
-              <span>· PDF 텍스트 자동 추출</span>
-              <span>· 섹션별 요약 · 발표자료용 정리</span>
+              <span>· 출처 추적 가능</span>
+              <span>· 2단계 번역·한국어 다듬기</span>
+              <span>· SEO 친화적 지식 아카이브</span>
             </div>
           </div>
         </Container>
@@ -49,36 +51,55 @@ export default function HomePage() {
       {/* 두 갈래 안내 */}
       <section className="border-y border-ink-200 bg-white">
         <Container className="py-16 grid md:grid-cols-2 gap-6">
-          <Link
-            href="/guides"
-            className="group block rounded-2xl border border-ink-200 p-8 hover:border-brand-600 hover:shadow-sm transition"
-          >
-            <div className="text-sm text-brand-700 font-semibold">1. 읽기</div>
-            <div className="mt-3 text-2xl font-bold tracking-tight">논문작성 가이드</div>
-            <p className="mt-3 text-ink-700 leading-7">
-              주제 설정부터 통계 해석, 발표자료 정리까지. 실무에 바로 쓸 수 있는
-              논문 작성 자료를 카테고리별로 정리했습니다.
-            </p>
-            <div className="mt-6 inline-flex items-center gap-2 text-brand-700 font-medium group-hover:gap-3 transition-all">
-              가이드 허브로 이동
-              <span>→</span>
-            </div>
-          </Link>
-          <Link
-            href="/analyzer"
-            className="group block rounded-2xl border border-ink-200 p-8 hover:border-brand-600 hover:shadow-sm transition"
-          >
-            <div className="text-sm text-brand-700 font-semibold">2. 분석</div>
-            <div className="mt-3 text-2xl font-bold tracking-tight">논문분석기</div>
-            <p className="mt-3 text-ink-700 leading-7">
-              PDF를 업로드하면 연구목적·방법·결과·결론을 섹션별로 자동 정리해드립니다.
-              결과는 내 서고에 저장하거나 발표자료용으로 내보낼 수 있습니다.
-            </p>
-            <div className="mt-6 inline-flex items-center gap-2 text-brand-700 font-medium group-hover:gap-3 transition-all">
-              지금 업로드하기
-              <span>→</span>
-            </div>
-          </Link>
+          {[
+            {
+              href: "/guides",
+              label: "1. Archive",
+              title: "논문작성 가이드",
+              desc: "주제 설정부터 참고문헌, 발표자료까지 검증 출처 기반으로 정리합니다.",
+              cta: "가이드 허브로 이동",
+            },
+            {
+              href: "/analyzer",
+              label: "2. Analyzer",
+              title: "논문분석기",
+              desc: "PDF를 업로드하면 연구목적·방법·결과·결론을 섹션별로 자동 정리합니다.",
+              cta: "지금 업로드하기",
+            },
+          ].map((card) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="group block rounded-2xl border border-ink-200 p-8 hover:border-brand-600 hover:shadow-sm transition"
+            >
+              <div className="text-sm text-brand-700 font-semibold">{card.label}</div>
+              <div className="mt-3 text-2xl font-bold tracking-tight">{card.title}</div>
+              <p className="mt-3 text-ink-700 leading-7">{card.desc}</p>
+              <div className="mt-6 inline-flex items-center gap-2 text-brand-700 font-medium group-hover:gap-3 transition-all">
+                {card.cta}
+                <span>→</span>
+              </div>
+            </Link>
+          ))}
+        </Container>
+      </section>
+
+      <section>
+        <Container className="py-16">
+          <SectionLabel>카테고리</SectionLabel>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">논문작성 지식 지도</h2>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {GUIDE_CATEGORIES.map((category) => (
+              <Link
+                key={category.slug}
+                href={`/categories/${category.slug}`}
+                className="rounded-2xl border border-ink-200 bg-white p-5 transition hover:border-brand-600 hover:shadow-sm"
+              >
+                <div className="text-lg font-bold text-ink-900">{category.name}</div>
+                <p className="mt-2 text-sm leading-6 text-ink-500">{category.desc}</p>
+              </Link>
+            ))}
+          </div>
         </Container>
       </section>
 
@@ -87,9 +108,9 @@ export default function HomePage() {
         <Container className="py-16">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <SectionLabel>가이드</SectionLabel>
+              <SectionLabel>추천 가이드</SectionLabel>
               <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">
-                많이 읽힌 가이드
+                먼저 읽으면 좋은 가이드
               </h2>
             </div>
             <Link
@@ -100,7 +121,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="mt-10 divide-y divide-ink-200 border-t border-b border-ink-200">
-            {GUIDE_ARTICLES.slice(0, 4).map((a) => {
+            {getPopularGuides(4).map((a) => {
               const category = GUIDE_CATEGORIES.find((c) => c.slug === a.category);
               return (
                 <Link
@@ -124,6 +145,27 @@ export default function HomePage() {
             <Link href="/guides" className="text-sm text-brand-700 font-medium">
               전체 가이드 보기 →
             </Link>
+          </div>
+        </Container>
+      </section>
+
+      <section className="bg-ink-50">
+        <Container className="py-20">
+          <SectionLabel>왜 이 사이트인가</SectionLabel>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">
+            출처가 보이는 논문작성 지식 플랫폼
+          </h2>
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            {[
+              ["원문 기반", "Purdue OWL, APA Style, NIH, 대학 도서관 등 확인 가능한 출처를 우선 사용합니다."],
+              ["번역 + 한국어 정리", "직역 초안 후 한국어 연구자에게 자연스러운 절차형 가이드로 다듬습니다."],
+              ["내부 연결 구조", "가이드, 카테고리, 관련 논문, 논문분석기를 연결해 체류와 학습 흐름을 만듭니다."],
+            ].map(([title, desc]) => (
+              <div key={title} className="rounded-2xl border border-ink-200 bg-white p-6">
+                <h3 className="text-lg font-bold text-ink-900">{title}</h3>
+                <p className="mt-3 text-sm leading-7 text-ink-700">{desc}</p>
+              </div>
+            ))}
           </div>
         </Container>
       </section>
@@ -188,6 +230,26 @@ export default function HomePage() {
       </section>
 
       {/* 요금제 요약 */}
+      <section>
+        <Container className="py-20">
+          <SectionLabel>최신 업데이트</SectionLabel>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">새로 검수된 가이드</h2>
+          <div className="mt-10 divide-y divide-ink-200 border-y border-ink-200">
+            {getLatestGuides(3).map((article) => (
+              <Link
+                key={article.slug}
+                href={`/guides/${article.slug}`}
+                className="block py-6 hover:bg-ink-50/60 -mx-5 px-5 sm:-mx-6 sm:px-6 transition"
+              >
+                <div className="text-xs font-semibold text-brand-700">Trust {article.trustScore}</div>
+                <div className="mt-2 text-lg font-semibold text-ink-900">{article.title}</div>
+                <p className="mt-2 text-sm leading-6 text-ink-500">{article.summary}</p>
+              </Link>
+            ))}
+          </div>
+        </Container>
+      </section>
+
       <section className="bg-ink-50">
         <Container className="py-20">
           <div className="flex items-end justify-between gap-4 flex-wrap">

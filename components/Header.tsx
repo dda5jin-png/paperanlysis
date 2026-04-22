@@ -107,11 +107,14 @@ export default function Header() {
             </div>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
             <NavLink href="/" active={pathname === "/"}>홈</NavLink>
             <NavLink href="/guides" active={pathname?.startsWith("/guides")}>논문작성 가이드</NavLink>
+            <NavLink href="/categories" active={pathname?.startsWith("/categories")}>카테고리</NavLink>
+            <NavLink href="/latest" active={pathname === "/latest"}>최신 업데이트</NavLink>
+            <NavLink href="/popular" active={pathname === "/popular"}>인기 가이드</NavLink>
             <NavLink href="/analyzer" active={pathname === "/analyzer"}>논문분석기</NavLink>
-            <NavLink href="/pricing" active={pathname === "/pricing"}>요금제</NavLink>
+            <NavLink href="/about" active={pathname === "/about"}>About</NavLink>
           </nav>
 
           <div className="hidden lg:flex items-center gap-3">
@@ -198,14 +201,6 @@ export default function Header() {
             </button>
           </div>
 
-          {/* Legacy desktop nav kept below is replaced by the hybrid navigation above. */}
-          <div className="hidden">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="h-5 w-5">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
         </div>
 
         {isMobileOpen && (
@@ -214,7 +209,13 @@ export default function Header() {
               {[
                 ["/", "홈"],
                 ["/guides", "논문작성 가이드"],
+                ["/categories", "카테고리"],
+                ["/latest", "최신 업데이트"],
+                ["/popular", "인기 가이드"],
                 ["/analyzer", "논문분석기"],
+                ["/about", "About"],
+                ["/editorial-policy", "Editorial Policy"],
+                ["/source-policy", "Source Policy"],
                 ["/pricing", "요금제"],
                 ["/library", "내 서고"],
                 ["/ideas", "연구 아이디어"],

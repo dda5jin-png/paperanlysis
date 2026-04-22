@@ -4,39 +4,50 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { ArticleListItem } from "@/components/guides/ArticleListItem";
-import { GUIDE_ARTICLES, GUIDE_CATEGORIES } from "@/lib/guide-data";
+import { GUIDE_ARTICLES, GUIDE_CATEGORIES, getPopularGuides } from "@/lib/guide-data";
 
 export function GuidesClient() {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [sort, setSort] = useState<"latest" | "popular">("latest");
 
   const filtered = useMemo(() => {
-    return GUIDE_ARTICLES.filter((a) => {
-      const matchQ = !query || a.title.includes(query) || a.lead.includes(query);
+    const base = [...GUIDE_ARTICLES].sort((a, b) =>
+      sort === "popular"
+        ? b.popularity - a.popularity
+        : Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
+    );
+    return base.filter((a) => {
+      const q = query.trim().toLowerCase();
+      const matchQ =
+        !q ||
+        a.title.toLowerCase().includes(q) ||
+        a.lead.toLowerCase().includes(q) ||
+        a.tags.some((tag) => tag.toLowerCase().includes(q));
       const matchC = activeCategory === "all" || a.category === activeCategory;
       return matchQ && matchC;
     });
-  }, [query, activeCategory]);
+  }, [query, activeCategory, sort]);
 
   return (
     <>
       <section className="bg-white border-b border-ink-200">
         <Container className="py-12 lg:py-16">
-          <SectionLabel>가이드 허브</SectionLabel>
+          <SectionLabel>Verified Academic Archive</SectionLabel>
           <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight">
             논문작성 가이드
           </h1>
           <p className="mt-4 text-ink-700 leading-7 max-w-2xl">
-            주제 설정부터 발표자료 정리까지, 실무에 필요한 자료를 카테고리별로 정리했습니다.
-            현재 {GUIDE_ARTICLES.length}개의 가이드가 공개되어 있으며, 매주 업데이트됩니다.
+            공신력 있는 원문을 기반으로 번역·정리한 논문작성 지식 아카이브입니다.
+            각 가이드는 출처, 번역 고지, 검수 기준을 함께 제공합니다.
           </p>
 
-          <div className="mt-8 flex gap-3 max-w-lg">
+          <div className="mt-8 grid gap-3 md:grid-cols-[1fr_auto] max-w-3xl">
             <div className="relative flex-1">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="가이드 검색 (예: 회귀분석, 가설)"
+                placeholder="가이드 검색 (예: 연구질문, APA, 발표자료)"
                 className="w-full h-12 pl-11 pr-4 rounded-lg border border-ink-200 bg-white text-[15px] placeholder:text-ink-500 focus:border-brand-700 focus:ring-2 focus:ring-brand-100 outline-none"
               />
               <svg
@@ -51,6 +62,22 @@ export function GuidesClient() {
                 <circle cx="11" cy="11" r="7" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
+            </div>
+            <div className="flex rounded-lg border border-ink-200 bg-ink-50 p-1">
+              {[
+                ["latest", "최신"],
+                ["popular", "인기"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setSort(value as "latest" | "popular")}
+                  className={`h-10 rounded-md px-4 text-sm font-semibold transition ${
+                    sort === value ? "bg-white text-ink-900 shadow-sm" : "text-ink-500"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </Container>
@@ -122,7 +149,7 @@ export function GuidesClient() {
                 인기 가이드
               </div>
               <ul className="mt-4 space-y-3">
-                {GUIDE_ARTICLES.slice(0, 5).map((a) => (
+                {getPopularGuides(5).map((a) => (
                   <li key={a.slug}>
                     <Link
                       href={`/guides/${a.slug}`}
@@ -137,7 +164,7 @@ export function GuidesClient() {
             <div className="rounded-xl border border-ink-200 p-5">
               <div className="text-sm font-semibold">가이드가 부족한가요?</div>
               <p className="mt-2 text-sm text-ink-700 leading-6">
-                읽고 싶은 주제를 알려주시면 다음 가이드 제작에 반영합니다.
+                출처 기반으로 정리되면 좋을 주제를 알려주시면 편집 큐에 반영합니다.
               </p>
               <Link
                 href="/contact"

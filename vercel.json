@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/archive/weekly-update",
+      "schedule": "0 0 * * 1"
+    }
+  ]
+}

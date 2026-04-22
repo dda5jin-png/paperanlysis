@@ -1,0 +1,27 @@
+name: Weekly Archive Update
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: "Run without writing to Supabase"
+        required: false
+        default: "false"
+
+jobs:
+  trigger-weekly-archive-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger archive update endpoint
+        env:
+          ARCHIVE_UPDATE_URL: ${{ secrets.ARCHIVE_UPDATE_URL }}
+          ARCHIVE_CRON_SECRET: ${{ secrets.ARCHIVE_CRON_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dryRun || 'false' }}
+        run: |
+          curl --fail --show-error --silent \
+            --request POST "$ARCHIVE_UPDATE_URL" \
+            --header "Authorization: Bearer $ARCHIVE_CRON_SECRET" \
+            --header "Content-Type: application/json" \
+            --data "{\"dryRun\": $DRY_RUN, \"limitPerTopic\": 5}"
