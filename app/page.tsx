@@ -3,29 +3,6 @@ import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 
-const researchDirections = [
-  {
-    category: "주택시장",
-    items: ["가격 변동 요인 분석", "지역 간 격차 구조", "전세/매매 관계"],
-  },
-  {
-    category: "정책 / 규제",
-    items: ["규제 변화의 시장 반응", "공공정책 효과 비교", "세제와 거래 행동"],
-  },
-  {
-    category: "개발 / 정비",
-    items: ["정비사업 추진 요인", "개발 기대와 가격 형성", "사업 단계별 리스크"],
-  },
-  {
-    category: "금융 / 투자",
-    items: ["금리와 주택 수요", "투자 심리와 거래량", "대출 규제의 파급효과"],
-  },
-  {
-    category: "도시 / 입지",
-    items: ["교통 접근성의 영향", "생활 인프라와 선호", "도시 공간 구조 변화"],
-  },
-];
-
 export default function HomePage() {
   return (
     <main>
@@ -96,39 +73,6 @@ export default function HomePage() {
               바로 분석하기 →
             </span>
           </Link>
-        </Container>
-      </section>
-
-      <section>
-        <Container className="py-16 lg:py-20">
-          <div className="max-w-2xl">
-            <SectionLabel>Research Direction</SectionLabel>
-            <h2 className="mt-4 text-2xl font-black tracking-tight text-ink-900 sm:text-3xl">
-              연구 주제 탐색 (부동산)
-            </h2>
-            <p className="mt-3 leading-7 text-ink-700">
-              논문 주제를 바로 확정하기보다, 먼저 어떤 방향으로 질문을 만들 수 있는지
-              넓게 살펴보는 공간입니다.
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {researchDirections.map((group) => (
-              <article
-                key={group.category}
-                className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm shadow-ink-100/40"
-              >
-                <h3 className="text-base font-black text-ink-900">{group.category}</h3>
-                <ul className="mt-4 space-y-2">
-                  {group.items.map((item) => (
-                    <li key={item} className="text-sm leading-6 text-ink-600">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
         </Container>
       </section>
     </main>
