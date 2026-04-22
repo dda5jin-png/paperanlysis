@@ -1,25 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-
-  // 1. 관리자 권한 확인
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const { error: authError, adminClient } = await requireAdmin();
+  if (authError) return authError;
 
   // 2. 모든 사용자 프로필 조회 (Admin Client 사용)
-  const adminClient = await createAdminClient();
   const { data: users, error } = await adminClient
     .from("profiles")
     .select(`

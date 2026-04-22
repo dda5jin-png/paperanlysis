@@ -15,13 +15,22 @@ export async function requireAdmin() {
     };
   }
 
-  const { data: profile } = await supabase
+  const adminClient = await createAdminClient();
+  const { data: profile } = await adminClient
     .from("profiles")
-    .select("role")
+    .select("role,email")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (profile?.role !== "admin") {
+  const { data: profileByEmail } = !profile && user.email
+    ? await adminClient
+        .from("profiles")
+        .select("role,email")
+        .eq("email", user.email)
+        .maybeSingle()
+    : { data: null };
+
+  if ((profile?.role ?? profileByEmail?.role) !== "admin") {
     return {
       error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
       user: null,
@@ -32,6 +41,6 @@ export async function requireAdmin() {
   return {
     error: null,
     user,
-    adminClient: await createAdminClient(),
+    adminClient,
   };
 }

@@ -1,22 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-
-  // 1. 관리자 권한 확인
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const { error: authError, adminClient } = await requireAdmin();
+  if (authError) return authError;
 
   // 2. 파라미터 추출
   const { 
@@ -41,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (isActive !== undefined) updateData.is_active = isActive;
 
   // 3. 사용자 프로필 업데이트
-  const { error } = await supabase
+  const { error } = await adminClient
     .from("profiles")
     .update(updateData)
     .eq("email", targetEmail);
