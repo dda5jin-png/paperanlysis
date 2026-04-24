@@ -16,15 +16,33 @@ async function getPublishedContent(slug: string): Promise<ArchiveContent | null>
     return null;
   }
 
+  const normalizedSlug = decodeURIComponent(slug).normalize("NFC");
   const supabase = await createAdminClient();
+
   const { data } = await supabase
     .from("archive_contents")
     .select("*")
-    .eq("slug", slug)
+    .eq("slug", normalizedSlug)
     .eq("content_status", "published")
     .maybeSingle();
 
-  return data as ArchiveContent | null;
+  if (data) {
+    return data as ArchiveContent | null;
+  }
+
+  const { data: fallbackRows } = await supabase
+    .from("archive_contents")
+    .select("*")
+    .eq("content_status", "published")
+    .order("published_at", { ascending: false })
+    .limit(20);
+
+  const matched = (fallbackRows ?? []).find((item) => {
+    const rowSlug = typeof item.slug === "string" ? item.slug.normalize("NFC") : "";
+    return rowSlug === normalizedSlug;
+  });
+
+  return (matched as ArchiveContent | undefined) ?? null;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
