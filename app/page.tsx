@@ -18,13 +18,15 @@ async function getLatestArchiveContents(): Promise<ArchiveContent[]> {
     .select("*")
     .eq("content_status", "published")
     .order("published_at", { ascending: false })
-    .limit(3);
+    .limit(4);
 
   return (data ?? []) as ArchiveContent[];
 }
 
 export default async function HomePage() {
   const latestArchiveContents = await getLatestArchiveContents();
+  const featuredArchive = latestArchiveContents[0] ?? null;
+  const secondaryArchives = latestArchiveContents.slice(featuredArchive ? 1 : 0, 4);
 
   return (
     <main>
@@ -58,24 +60,62 @@ export default async function HomePage() {
 
       <section className="border-y border-ink-200 bg-white">
         <Container className="grid gap-5 py-14 md:grid-cols-2 lg:py-16">
-          <Link
-            href="/guides"
-            className="group rounded-[28px] border border-ink-200 bg-white p-7 transition hover:border-brand-600 hover:shadow-sm sm:p-8"
-          >
-            <div className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-              논문작성 가이드
-            </div>
-            <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">
-              작성 단계별 지식 아카이브
-            </h2>
-            <p className="mt-3 leading-7 text-ink-700">
-              주제 설정, 선행연구, 연구설계, 분석, 발표까지 논문 작성 흐름에 맞춰
-              구조화된 가이드를 확인합니다.
-            </p>
-            <span className="mt-6 inline-flex font-bold text-brand-700 transition group-hover:translate-x-1">
-              가이드 목록 보기 →
-            </span>
-          </Link>
+          {featuredArchive ? (
+            <Link
+              href={`/archive/${featuredArchive.slug}`}
+              className="group rounded-[32px] border border-brand-200 bg-[linear-gradient(180deg,#f8fbff,white)] p-7 transition hover:border-brand-500 hover:shadow-md sm:p-8"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                  대표 가이드 아티클
+                </span>
+                <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-ink-500 ring-1 ring-inset ring-ink-200">
+                  {featuredArchive.category}
+                </span>
+                <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-ink-500 ring-1 ring-inset ring-ink-200">
+                  {featuredArchive.guide_data.reading_time}
+                </span>
+              </div>
+              <h2 className="mt-5 text-[30px] font-black leading-[1.2] tracking-tight text-ink-900">
+                {featuredArchive.guide_data.title}
+              </h2>
+              <p className="mt-4 text-base font-semibold leading-8 text-ink-800">
+                {featuredArchive.guide_data.one_line_summary}
+              </p>
+              <p className="mt-4 line-clamp-4 text-[15px] leading-7 text-ink-700">
+                {featuredArchive.guide_data.summary}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {featuredArchive.tags.slice(0, 3).map((tag) => (
+                  <span key={tag} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-ink-600 ring-1 ring-inset ring-ink-200">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+              <span className="mt-7 inline-flex font-bold text-brand-700 transition group-hover:translate-x-1">
+                이 아티클 읽기 →
+              </span>
+            </Link>
+          ) : (
+            <Link
+              href="/guides"
+              className="group rounded-[28px] border border-ink-200 bg-white p-7 transition hover:border-brand-600 hover:shadow-sm sm:p-8"
+            >
+              <div className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                논문작성 가이드
+              </div>
+              <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">
+                작성 단계별 지식 아카이브
+              </h2>
+              <p className="mt-3 leading-7 text-ink-700">
+                주제 설정, 선행연구, 연구설계, 분석, 발표까지 논문 작성 흐름에 맞춰
+                구조화된 가이드를 확인합니다.
+              </p>
+              <span className="mt-6 inline-flex font-bold text-brand-700 transition group-hover:translate-x-1">
+                가이드 목록 보기 →
+              </span>
+            </Link>
+          )}
 
           <Link
             href="/analyzer"
@@ -120,9 +160,13 @@ export default async function HomePage() {
             <div className="mt-8 rounded-[28px] border border-dashed border-ink-300 bg-white p-8 text-sm font-semibold text-ink-600">
               아직 발행된 아카이브가 없습니다. 관리자 화면에서 초안 생성 후 Publish 하면 여기에 나타납니다.
             </div>
+          ) : secondaryArchives.length === 0 ? (
+            <div className="mt-8 rounded-[28px] border border-ink-200 bg-white p-8 text-sm font-semibold leading-7 text-ink-600">
+              현재 공개된 최신 아카이브는 상단 대표 아티클로 노출되고 있습니다. 다음 발행 글부터 이 영역에 함께 쌓입니다.
+            </div>
           ) : (
             <div className="mt-8 grid gap-4 lg:grid-cols-3">
-              {latestArchiveContents.map((item) => (
+              {secondaryArchives.map((item) => (
                 <Link
                   key={item.id}
                   href={`/archive/${item.slug}`}
