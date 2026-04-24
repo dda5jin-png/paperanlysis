@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-auth";
 import type { ArchiveContentStatus, NaverStatus } from "@/lib/archive-content-types";
 
@@ -65,6 +66,13 @@ export async function PATCH(request: Request, { params }: Props) {
 
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/archive");
+  revalidatePath(`/admin/archive/content/${params.id}`);
+  if (data?.slug) {
+    revalidatePath(`/archive/${data.slug}`);
   }
 
   return NextResponse.json({ content: data });

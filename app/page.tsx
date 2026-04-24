@@ -5,6 +5,8 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { ArchiveContent } from "@/lib/archive-content-types";
 
+export const dynamic = "force-dynamic";
+
 async function getLatestArchiveContents(): Promise<ArchiveContent[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return [];
