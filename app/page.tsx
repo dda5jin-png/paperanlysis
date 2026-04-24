@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -24,6 +25,7 @@ async function getLatestArchiveContents(): Promise<ArchiveContent[]> {
 }
 
 export default async function HomePage() {
+  noStore();
   const latestArchiveContents = await getLatestArchiveContents();
   const featuredArchive = latestArchiveContents[0] ?? null;
   const secondaryArchives = latestArchiveContents.slice(featuredArchive ? 1 : 0, 4);
