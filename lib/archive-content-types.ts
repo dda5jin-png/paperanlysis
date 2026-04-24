@@ -26,6 +26,17 @@ export type NaverBlogSummary = {
   hashtags: string[];
 };
 
+export type ArchiveSourceCandidate = {
+  title: string;
+  source: string;
+  url: string;
+  published_year: string;
+  doi: string;
+  authors: string[];
+  original_excerpt: string;
+  korean_summary: string;
+};
+
 export type ArchiveContent = {
   id: string;
   title: string;
@@ -34,7 +45,7 @@ export type ArchiveContent = {
   tags: string[];
   guide_data: GeneratedGuideData;
   naver_summary: NaverBlogSummary;
-  source_candidates: unknown[];
+  source_candidates: ArchiveSourceCandidate[];
   content_status: ArchiveContentStatus;
   naver_status: NaverStatus;
   created_by: string | null;
@@ -59,4 +70,30 @@ export function formatNaverSummary(summary: NaverBlogSummary) {
     "",
     summary.hashtags.join(" "),
   ].join("\n");
+}
+
+export function normalizeArchiveSourceCandidates(value: unknown): ArchiveSourceCandidate[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const source = item as Record<string, unknown>;
+      return {
+        title: typeof source.title === "string" ? source.title : "Untitled",
+        source: typeof source.source === "string" ? source.source : "unknown",
+        url: typeof source.url === "string" ? source.url : "",
+        published_year: typeof source.published_year === "string" ? source.published_year : "",
+        doi: typeof source.doi === "string" ? source.doi : "",
+        authors: Array.isArray(source.authors) ? source.authors.filter((author): author is string => typeof author === "string") : [],
+        original_excerpt:
+          typeof source.original_excerpt === "string"
+            ? source.original_excerpt
+            : typeof source.abstract === "string"
+              ? source.abstract
+              : "",
+        korean_summary: typeof source.korean_summary === "string" ? source.korean_summary : "",
+      };
+    })
+    .filter((item): item is ArchiveSourceCandidate => Boolean(item));
 }

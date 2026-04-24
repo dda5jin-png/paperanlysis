@@ -1,6 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { discoverAcademicSources } from "@/lib/source-integrations";
-import type { GeneratedGuideData, NaverBlogSummary } from "@/lib/archive-content-types";
+import type {
+  ArchiveSourceCandidate,
+  GeneratedGuideData,
+  NaverBlogSummary,
+} from "@/lib/archive-content-types";
 import type { NormalizedAcademicWork } from "@/lib/source-integrations";
 
 export type GenerateArchiveContentInput = {
@@ -13,7 +17,7 @@ export type GenerateArchiveContentInput = {
 export type GeneratedArchiveContent = {
   guide_data: GeneratedGuideData;
   naver_summary: NaverBlogSummary;
-  source_candidates: unknown[];
+  source_candidates: ArchiveSourceCandidate[];
 };
 
 const DEFAULT_TOPICS = [
@@ -63,6 +67,7 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
   const parsed = JSON.parse(stripJsonFence(result.response.text())) as {
     guide_data: GeneratedGuideData;
     naver_summary: NaverBlogSummary;
+    source_notes?: ArchiveSourceCandidate[];
   };
 
   validateGeneratedContent(parsed.guide_data, parsed.naver_summary);
@@ -70,7 +75,7 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
   return {
     guide_data: parsed.guide_data,
     naver_summary: normalizeNaverSummary(parsed.naver_summary),
-    source_candidates: sourceCandidates,
+    source_candidates: normalizeSourceNotes(parsed.source_notes, sourceCandidates),
   };
 }
 
@@ -78,11 +83,25 @@ function buildArchiveContentPrompt(input: {
   topic: string;
   category: string;
   keywords: string[];
-  sourceCandidates: { title: string; source: string; url: string; doi: string; published_year: string }[];
+  sourceCandidates: {
+    title: string;
+    source: string;
+    url: string;
+    doi: string;
+    published_year: string;
+    authors?: string[];
+    abstract?: string;
+  }[];
 }) {
   const sourceLines = input.sourceCandidates
     .map((source, index) => {
-      return `${index + 1}. ${source.title} (${source.source}, ${source.published_year || "year unknown"}) ${source.doi ? `DOI: ${source.doi}` : ""} ${source.url}`;
+      return `${index + 1}. 제목: ${source.title}
+출처: ${source.source}
+연도: ${source.published_year || "year unknown"}
+저자: ${(source.authors || []).join(", ") || "unknown"}
+DOI: ${source.doi || "없음"}
+URL: ${source.url || "없음"}
+원문 초록: ${source.abstract || "없음"}`;
     })
     .join("\n");
 
@@ -119,6 +138,13 @@ ${sourceLines || "후보 출처 없음. 출처를 새로 꾸며내지 말 것."}
 - 해시태그는 8~12개, 모두 #로 시작
 - 쉽고 읽기 좋지만 낚시성 표현 금지
 
+출처 정리 규칙:
+- source_notes는 2~4개
+- 반드시 제공된 후보 출처 안에서만 작성
+- original_excerpt에는 원문 초록 또는 핵심 문장을 짧게 보존
+- korean_summary에는 해당 출처를 한국어로 2~4문장 분량으로 자연스럽게 정리
+- 새 DOI, 새 URL, 새 출처 이름을 꾸며내지 말 것
+
 반드시 아래 JSON만 출력:
 {
   "guide_data": {
@@ -143,7 +169,19 @@ ${sourceLines || "후보 출처 없음. 출처를 새로 꾸며내지 말 것."}
     "checklist": [],
     "cta": "👉 자세한 내용은 아래 링크에서 확인하세요",
     "hashtags": []
-  }
+  },
+  "source_notes": [
+    {
+      "title": "",
+      "source": "",
+      "url": "",
+      "published_year": "",
+      "doi": "",
+      "authors": [],
+      "original_excerpt": "",
+      "korean_summary": ""
+    }
+  ]
 }`;
 }
 
@@ -163,4 +201,33 @@ function normalizeNaverSummary(summary: NaverBlogSummary): NaverBlogSummary {
     cta: summary.cta || "👉 자세한 내용은 아래 링크에서 확인하세요",
     hashtags: (summary.hashtags || []).map((tag) => (tag.startsWith("#") ? tag : `#${tag}`)),
   };
+}
+
+function normalizeSourceNotes(
+  notes: ArchiveSourceCandidate[] | undefined,
+  fallbacks: NormalizedAcademicWork[],
+): ArchiveSourceCandidate[] {
+  if (Array.isArray(notes) && notes.length > 0) {
+    return notes.slice(0, 4).map((note) => ({
+      title: note.title || "Untitled",
+      source: note.source || "unknown",
+      url: note.url || "",
+      published_year: note.published_year || "",
+      doi: note.doi || "",
+      authors: Array.isArray(note.authors) ? note.authors : [],
+      original_excerpt: note.original_excerpt || "",
+      korean_summary: note.korean_summary || "",
+    }));
+  }
+
+  return fallbacks.slice(0, 4).map((source) => ({
+    title: source.title,
+    source: source.source,
+    url: source.url,
+    published_year: source.published_year,
+    doi: source.doi,
+    authors: source.authors,
+    original_excerpt: source.abstract,
+    korean_summary: "",
+  }));
 }

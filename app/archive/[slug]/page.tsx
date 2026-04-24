@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { createAdminClient } from "@/lib/supabase/server";
-import type { ArchiveContent } from "@/lib/archive-content-types";
+import {
+  normalizeArchiveSourceCandidates,
+  type ArchiveContent,
+} from "@/lib/archive-content-types";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +43,7 @@ export default async function PublishedArchiveContentPage({ params }: Props) {
   if (!content) notFound();
 
   const guide = content.guide_data;
+  const sourceNotes = normalizeArchiveSourceCandidates(content.source_candidates);
 
   return (
     <main>
@@ -76,6 +80,49 @@ export default async function PublishedArchiveContentPage({ params }: Props) {
               ))}
             </ul>
           </div>
+
+          {sourceNotes.length > 0 && (
+            <section className="mt-12 rounded-[28px] border border-ink-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-700">Source Notes</p>
+                <h2 className="text-2xl font-black text-ink-900">출처 원문과 한국어 정리</h2>
+                <p className="text-sm leading-7 text-ink-600">
+                  아래 자료는 이 가이드를 구성할 때 검토한 원문 후보입니다. 원문 일부와 함께 한국어로 핵심을 짧게 정리했습니다.
+                </p>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {sourceNotes.map((source, index) => (
+                  <article key={`${source.url}-${index}`} className="rounded-2xl border border-ink-100 p-5">
+                    <a href={source.url} target="_blank" rel="noreferrer" className="block hover:text-brand-700">
+                      <h3 className="text-lg font-black leading-7 text-ink-900">{source.title}</h3>
+                      <p className="mt-1 text-xs font-semibold text-ink-500">
+                        {source.source} · {source.published_year || "year unknown"} {source.doi ? `· DOI ${source.doi}` : ""}
+                      </p>
+                    </a>
+
+                    {source.authors.length > 0 && (
+                      <p className="mt-3 text-sm leading-6 text-ink-500">저자: {source.authors.join(", ")}</p>
+                    )}
+
+                    {source.original_excerpt && (
+                      <div className="mt-4 rounded-2xl border border-ink-100 bg-ink-50 p-4">
+                        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-ink-400">Original excerpt</p>
+                        <p className="mt-2 text-sm leading-7 text-ink-700">{source.original_excerpt}</p>
+                      </div>
+                    )}
+
+                    {source.korean_summary && (
+                      <div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50 p-4">
+                        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-brand-700">한국어 정리</p>
+                        <p className="mt-2 text-sm leading-7 text-ink-800">{source.korean_summary}</p>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
         </article>
       </Container>
     </main>

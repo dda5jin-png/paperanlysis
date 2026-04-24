@@ -39,6 +39,8 @@ type SourceInboxItem = {
   created_at: string;
 };
 
+type SourceFilter = "all" | "accepted" | "hold" | "excluded" | "pending";
+
 const categoryOptions = [
   ["topic", "주제 설정"],
   ["literature-review", "선행연구"],
@@ -64,6 +66,7 @@ export default function AdminArchivePage() {
   const [generating, setGenerating] = useState(false);
   const [generatingSourceId, setGeneratingSourceId] = useState("");
   const [updatingSourceId, setUpdatingSourceId] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [topic, setTopic] = useState("");
   const [category, setCategory] = useState("paper-structure");
   const [error, setError] = useState("");
@@ -85,6 +88,11 @@ export default function AdminArchivePage() {
   useEffect(() => {
     loadContents();
   }, []);
+
+  const filteredSources = sources.filter((source) => {
+    const status = source.raw_metadata?.editorial_status || "pending";
+    return sourceFilter === "all" ? true : status === sourceFilter;
+  });
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -299,23 +307,46 @@ export default function AdminArchivePage() {
                 주간 아카이빙으로 모은 출처 후보입니다. 검토 후 바로 가이드 초안으로 넘길 수 있습니다.
               </p>
             </div>
-            <span className="text-sm font-bold text-ink-500">{sources.length}개 후보</span>
+            <span className="text-sm font-bold text-ink-500">{filteredSources.length}개 후보</span>
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            {[
+              ["all", "전체"],
+              ["accepted", "채택"],
+              ["hold", "보류"],
+              ["excluded", "제외"],
+              ["pending", "미분류"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setSourceFilter(value as SourceFilter)}
+                className={cn(
+                  "rounded-full px-4 py-2 text-sm font-bold transition",
+                  sourceFilter === value
+                    ? "bg-ink-900 text-white"
+                    : "border border-ink-200 bg-white text-ink-600 hover:bg-ink-50",
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {loading ? (
             <div className="flex justify-center rounded-3xl border border-ink-200 bg-white p-12">
               <Loader2 className="h-6 w-6 animate-spin text-brand-700" />
             </div>
-          ) : sources.length === 0 ? (
+          ) : filteredSources.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-ink-300 bg-white p-10 text-center">
               <FileSearch className="mx-auto h-9 w-9 text-ink-300" />
               <p className="mt-3 text-sm font-semibold text-ink-700">
-                아직 수집된 source 후보가 없습니다. weekly-update를 먼저 한 번 실행해 주세요.
+                조건에 맞는 source 후보가 없습니다. weekly-update를 실행하거나 필터를 바꿔 보세요.
               </p>
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
-              {sources.map((source) => (
+              {filteredSources.map((source) => (
                 <article key={source.id} className="rounded-3xl border border-ink-200 bg-white p-5 shadow-sm">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
@@ -355,8 +386,8 @@ export default function AdminArchivePage() {
                     </a>
                     <button
                       onClick={() => handleGenerateFromSource(source)}
-                      disabled={generatingSourceId === source.id}
-                      className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-bold text-white hover:bg-ink-800 disabled:opacity-60"
+                      disabled={generatingSourceId === source.id || (source.raw_metadata?.editorial_status || "pending") !== "accepted"}
+                      className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-bold text-white hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {generatingSourceId === source.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -366,6 +397,11 @@ export default function AdminArchivePage() {
                       이 출처로 가이드 초안 만들기
                     </button>
                   </div>
+                  {(source.raw_metadata?.editorial_status || "pending") !== "accepted" && (
+                    <p className="mt-2 text-xs font-semibold text-amber-700">
+                      초안 생성은 채택된 source에서만 가능합니다.
+                    </p>
+                  )}
 
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-ink-100 pt-3">
                     <SourceStatusButton

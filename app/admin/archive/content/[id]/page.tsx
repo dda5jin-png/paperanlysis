@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clipboard, Loader2, Send, Sparkles } from "lucide-react";
 import type { ArchiveContent } from "@/lib/archive-content-types";
-import { formatNaverSummary } from "@/lib/archive-content-types";
+import { formatNaverSummary, normalizeArchiveSourceCandidates } from "@/lib/archive-content-types";
 import { cn } from "@/lib/utils";
 
 type Props = { params: { id: string } };
@@ -82,6 +82,7 @@ export default function ArchiveContentDetailPage({ params }: Props) {
 
   const guide = content.guide_data;
   const naver = content.naver_summary;
+  const sourceNotes = normalizeArchiveSourceCandidates(content.source_candidates);
 
   return (
     <main className="min-h-screen bg-ink-50">
@@ -209,11 +210,25 @@ export default function ArchiveContentDetailPage({ params }: Props) {
             <section className="rounded-[32px] border border-ink-200 bg-white p-6 shadow-sm">
               <h2 className="text-sm font-black uppercase tracking-wider text-ink-500">Source Candidates</h2>
               <div className="mt-4 space-y-3">
-                {(content.source_candidates || []).slice(0, 6).map((source: any, index) => (
-                  <a key={`${source.url}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="block rounded-2xl border border-ink-100 p-3 text-sm hover:bg-ink-50">
-                    <div className="font-bold text-ink-900">{source.title || "Untitled"}</div>
-                    <div className="mt-1 text-xs text-ink-500">{source.source} · {source.published_year || "year unknown"}</div>
-                  </a>
+                {sourceNotes.slice(0, 6).map((source, index) => (
+                  <div key={`${source.url}-${index}`} className="rounded-2xl border border-ink-100 p-4 text-sm">
+                    <a href={source.url} target="_blank" rel="noreferrer" className="block hover:text-brand-700">
+                      <div className="font-bold text-ink-900">{source.title || "Untitled"}</div>
+                      <div className="mt-1 text-xs text-ink-500">{source.source} · {source.published_year || "year unknown"}</div>
+                    </a>
+                    {source.original_excerpt && (
+                      <div className="mt-3">
+                        <div className="text-[11px] font-black uppercase tracking-wider text-ink-400">Original excerpt</div>
+                        <p className="mt-1 line-clamp-4 text-xs leading-5 text-ink-600">{source.original_excerpt}</p>
+                      </div>
+                    )}
+                    {source.korean_summary && (
+                      <div className="mt-3 rounded-xl bg-ink-50 p-3">
+                        <div className="text-[11px] font-black uppercase tracking-wider text-brand-700">한국어 정리</div>
+                        <p className="mt-1 text-xs leading-5 text-ink-700">{source.korean_summary}</p>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </section>
