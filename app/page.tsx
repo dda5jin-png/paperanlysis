@@ -2,8 +2,28 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { createAdminClient } from "@/lib/supabase/server";
+import type { ArchiveContent } from "@/lib/archive-content-types";
 
-export default function HomePage() {
+async function getLatestArchiveContents(): Promise<ArchiveContent[]> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return [];
+  }
+
+  const supabase = await createAdminClient();
+  const { data } = await supabase
+    .from("archive_contents")
+    .select("*")
+    .eq("content_status", "published")
+    .order("published_at", { ascending: false })
+    .limit(3);
+
+  return (data ?? []) as ArchiveContent[];
+}
+
+export default async function HomePage() {
+  const latestArchiveContents = await getLatestArchiveContents();
+
   return (
     <main>
       <section className="relative overflow-hidden">
@@ -73,6 +93,65 @@ export default function HomePage() {
               바로 분석하기 →
             </span>
           </Link>
+        </Container>
+      </section>
+
+      <section className="bg-ink-50">
+        <Container className="py-14 lg:py-16">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <SectionLabel>Latest Archive</SectionLabel>
+              <h2 className="mt-4 text-3xl font-black tracking-tight text-ink-900">
+                최신 아카이브
+              </h2>
+              <p className="mt-3 max-w-2xl text-[16px] leading-7 text-ink-700">
+                실제로 발행된 아카이브 콘텐츠를 최신순으로 보여줍니다. 출처 기반으로 정리된
+                한국어 가이드부터 먼저 확인해 보세요.
+              </p>
+            </div>
+            <Link href="/guides" className="hidden text-sm font-bold text-brand-700 hover:text-brand-800 sm:inline-flex">
+              가이드 전체 보기 →
+            </Link>
+          </div>
+
+          {latestArchiveContents.length === 0 ? (
+            <div className="mt-8 rounded-[28px] border border-dashed border-ink-300 bg-white p-8 text-sm font-semibold text-ink-600">
+              아직 발행된 아카이브가 없습니다. 관리자 화면에서 초안 생성 후 Publish 하면 여기에 나타납니다.
+            </div>
+          ) : (
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {latestArchiveContents.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/archive/${item.slug}`}
+                  className="rounded-[28px] border border-ink-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200"
+                >
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700">
+                      {item.category}
+                    </span>
+                    <span className="rounded-full bg-ink-100 px-3 py-1 text-xs font-bold text-ink-500">
+                      {item.guide_data.reading_time}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-xl font-black leading-8 tracking-tight text-ink-900">
+                    {item.guide_data.title}
+                  </h3>
+                  <p className="mt-3 line-clamp-4 text-sm leading-7 text-ink-700">
+                    {item.guide_data.summary}
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {item.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-semibold text-ink-600">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-5 text-sm font-bold text-brand-700">아카이브 읽기 →</p>
+                </Link>
+              ))}
+            </div>
+          )}
         </Container>
       </section>
     </main>

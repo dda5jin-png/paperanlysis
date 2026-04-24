@@ -67,6 +67,7 @@ export default function AdminArchivePage() {
   const [generatingSourceId, setGeneratingSourceId] = useState("");
   const [updatingSourceId, setUpdatingSourceId] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [topic, setTopic] = useState("");
   const [category, setCategory] = useState("paper-structure");
   const [error, setError] = useState("");
@@ -93,6 +94,14 @@ export default function AdminArchivePage() {
     const status = source.raw_metadata?.editorial_status || "pending";
     return sourceFilter === "all" ? true : status === sourceFilter;
   });
+
+  const acceptedSources = sources.filter(
+    (source) => (source.raw_metadata?.editorial_status || "pending") === "accepted",
+  );
+
+  const selectedAcceptedSources = acceptedSources.filter((source) =>
+    selectedSourceIds.includes(source.id),
+  );
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -172,6 +181,67 @@ export default function AdminArchivePage() {
     }
   };
 
+  const handleGenerateFromSelectedSources = async () => {
+    if (selectedAcceptedSources.length === 0) {
+      setError("먼저 채택된 source를 1개 이상 선택해 주세요.");
+      return;
+    }
+
+    setGenerating(true);
+    setError("");
+
+    try {
+      const response = await fetchWithTimeout("/api/admin/archive", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic:
+            topic.trim() ||
+            selectedAcceptedSources
+              .slice(0, 2)
+              .map((source) => source.title)
+              .join(" / "),
+          category,
+          keywords: Array.from(
+            new Set(
+              selectedAcceptedSources.flatMap((source) => [
+                source.organization,
+                source.raw_metadata?.published_year,
+                ...(source.raw_metadata?.authors || []).slice(0, 2),
+              ]),
+            ),
+          ).filter(Boolean),
+          sourceCandidates: selectedAcceptedSources.map((source) => ({
+            title: source.title,
+            source: source.organization,
+            url: source.url,
+            published_year: source.raw_metadata?.published_year || "",
+            doi: source.raw_metadata?.doi || "",
+            authors: source.raw_metadata?.authors || [],
+            abstract: source.raw_metadata?.abstract || "",
+            relevance_score: source.raw_metadata?.relevance_score || 1,
+          })),
+        }),
+      });
+      const json = await response.json();
+      setGenerating(false);
+      if (!response.ok) {
+        setError(formatError(json.error || "선택된 출처 기반 가이드 생성에 실패했습니다."));
+        return;
+      }
+      setSelectedSourceIds([]);
+      router.push(`/admin/archive/content/${json.id}`);
+    } catch (requestError) {
+      setGenerating(false);
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "선택된 출처 기반 생성 요청이 너무 오래 걸렸습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    }
+  };
+
   const updateSourceStatus = async (
     sourceId: string,
     editorialStatus: "pending" | "accepted" | "hold" | "excluded",
@@ -202,6 +272,14 @@ export default function AdminArchivePage() {
             }
           : item,
       ),
+    );
+  };
+
+  const toggleSourceSelection = (sourceId: string) => {
+    setSelectedSourceIds((current) =>
+      current.includes(sourceId)
+        ? current.filter((id) => id !== sourceId)
+        : [...current, sourceId],
     );
   };
 
@@ -243,6 +321,17 @@ export default function AdminArchivePage() {
                   ))}
                 </select>
               </div>
+              <div className="mt-3 rounded-xl border border-dashed border-ink-200 bg-white px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-ink-500">
+                  Selected Accepted Sources
+                </p>
+                <p className="mt-2 text-sm leading-6 text-ink-700">
+                  현재 {selectedAcceptedSources.length}개 선택됨
+                  {selectedAcceptedSources.length > 0
+                    ? ` · ${selectedAcceptedSources.slice(0, 2).map((source) => source.title).join(" / ")}`
+                    : " · 아래 Source Inbox에서 채택된 source를 선택하세요."}
+                </p>
+              </div>
               <button
                 onClick={handleGenerate}
                 disabled={generating}
@@ -250,6 +339,14 @@ export default function AdminArchivePage() {
               >
                 {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Generate New Guide
+              </button>
+              <button
+                onClick={handleGenerateFromSelectedSources}
+                disabled={generating || selectedAcceptedSources.length === 0}
+                className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 text-sm font-black text-brand-800 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                선택한 출처로 통합 가이드 만들기
               </button>
             </div>
           </div>
@@ -367,6 +464,17 @@ export default function AdminArchivePage() {
               {filteredSources.map((source) => (
                 <article key={source.id} className="rounded-3xl border border-ink-200 bg-white p-5 shadow-sm">
                   <div className="flex flex-wrap items-center gap-2">
+                    {(source.raw_metadata?.editorial_status || "pending") === "accepted" && (
+                      <label className="mr-1 inline-flex cursor-pointer items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">
+                        <input
+                          type="checkbox"
+                          checked={selectedSourceIds.includes(source.id)}
+                          onChange={() => toggleSourceSelection(source.id)}
+                          className="h-3.5 w-3.5 rounded border-ink-300"
+                        />
+                        선택
+                      </label>
+                    )}
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
                       {source.organization}
                     </span>
