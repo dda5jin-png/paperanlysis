@@ -28,6 +28,10 @@ const DEFAULT_TOPICS = [
   { topic: "참고문헌 작성", category: "citation", keywords: ["참고문헌", "APA", "인용"] },
   { topic: "발표자료 구성", category: "presentation", keywords: ["발표자료", "PPT", "디펜스"] },
 ];
+const GENERATION_TIMEOUT_MS = 35_000;
+const MAX_SOURCE_CANDIDATES = 3;
+const MAX_ABSTRACT_LENGTH = 500;
+const MAX_EXCERPT_LENGTH = 320;
 
 export async function generateArchiveContent(input: GenerateArchiveContentInput): Promise<GeneratedArchiveContent> {
   const picked = input.topic
@@ -49,7 +53,7 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
     topic: picked.topic,
     category: picked.category,
     keywords: picked.keywords,
-    sourceCandidates: sourceCandidates.slice(0, 5),
+    sourceCandidates: sourceCandidates.slice(0, MAX_SOURCE_CANDIDATES).map(compactSourceCandidate),
   });
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -63,7 +67,11 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
     generationConfig: { responseMimeType: "application/json" },
   });
 
-  const result = await model.generateContent(prompt);
+  const result = await withTimeout(
+    model.generateContent(prompt),
+    GENERATION_TIMEOUT_MS,
+    "AI 가이드 생성 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.",
+  );
   const parsed = JSON.parse(stripJsonFence(result.response.text())) as {
     guide_data: GeneratedGuideData;
     naver_summary: NaverBlogSummary;
@@ -185,6 +193,13 @@ ${sourceLines || "후보 출처 없음. 출처를 새로 꾸며내지 말 것."}
 }`;
 }
 
+function compactSourceCandidate(source: NormalizedAcademicWork) {
+  return {
+    ...source,
+    abstract: truncateText(source.abstract, MAX_ABSTRACT_LENGTH),
+  };
+}
+
 function stripJsonFence(value: string) {
   return value.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 }
@@ -215,7 +230,7 @@ function normalizeSourceNotes(
       published_year: note.published_year || "",
       doi: note.doi || "",
       authors: Array.isArray(note.authors) ? note.authors : [],
-      original_excerpt: note.original_excerpt || "",
+      original_excerpt: truncateText(note.original_excerpt || "", MAX_EXCERPT_LENGTH),
       korean_summary: note.korean_summary || "",
     }));
   }
@@ -227,7 +242,23 @@ function normalizeSourceNotes(
     published_year: source.published_year,
     doi: source.doi,
     authors: source.authors,
-    original_excerpt: source.abstract,
+    original_excerpt: truncateText(source.abstract, MAX_EXCERPT_LENGTH),
     korean_summary: "",
   }));
+}
+
+function truncateText(value: string, maxLength: number) {
+  if (!value) return "";
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trim()}...`;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
 }

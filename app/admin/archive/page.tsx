@@ -97,61 +97,79 @@ export default function AdminArchivePage() {
   const handleGenerate = async () => {
     setGenerating(true);
     setError("");
-    const response = await fetch("/api/admin/archive", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        topic: topic.trim() || undefined,
-        category,
-        keywords: topic.trim() ? topic.split(/\s+/).slice(0, 5) : [],
-      }),
-    });
-    const json = await response.json();
-    setGenerating(false);
-    if (!response.ok) {
-      setError(formatError(json.error || "가이드 생성에 실패했습니다."));
-      return;
+    try {
+      const response = await fetchWithTimeout("/api/admin/archive", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: topic.trim() || undefined,
+          category,
+          keywords: topic.trim() ? topic.split(/\s+/).slice(0, 5) : [],
+        }),
+      });
+      const json = await response.json();
+      setGenerating(false);
+      if (!response.ok) {
+        setError(formatError(json.error || "가이드 생성에 실패했습니다."));
+        return;
+      }
+      router.push(`/admin/archive/content/${json.id}`);
+    } catch (requestError) {
+      setGenerating(false);
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "생성 요청이 너무 오래 걸렸습니다. 잠시 후 다시 시도해 주세요.",
+      );
     }
-    router.push(`/admin/archive/content/${json.id}`);
   };
 
   const handleGenerateFromSource = async (source: SourceInboxItem) => {
     setGeneratingSourceId(source.id);
     setError("");
-    const response = await fetch("/api/admin/archive", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        topic: source.title,
-        category,
-        keywords: [
-          source.organization,
-          source.raw_metadata?.published_year,
-          ...(source.raw_metadata?.authors || []).slice(0, 2),
-        ].filter(Boolean),
-        sourceCandidates: [
-          {
-            title: source.title,
-            source: source.organization,
-            url: source.url,
-            published_year: source.raw_metadata?.published_year || "",
-            doi: source.raw_metadata?.doi || "",
-            authors: source.raw_metadata?.authors || [],
-            abstract: source.raw_metadata?.abstract || "",
-            relevance_score: source.raw_metadata?.relevance_score || 1,
-          },
-        ],
-      }),
-    });
-    const json = await response.json();
-    setGeneratingSourceId("");
-    if (!response.ok) {
-      setError(formatError(json.error || "출처 기반 가이드 생성에 실패했습니다."));
-      return;
+    try {
+      const response = await fetchWithTimeout("/api/admin/archive", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: source.title,
+          category,
+          keywords: [
+            source.organization,
+            source.raw_metadata?.published_year,
+            ...(source.raw_metadata?.authors || []).slice(0, 2),
+          ].filter(Boolean),
+          sourceCandidates: [
+            {
+              title: source.title,
+              source: source.organization,
+              url: source.url,
+              published_year: source.raw_metadata?.published_year || "",
+              doi: source.raw_metadata?.doi || "",
+              authors: source.raw_metadata?.authors || [],
+              abstract: source.raw_metadata?.abstract || "",
+              relevance_score: source.raw_metadata?.relevance_score || 1,
+            },
+          ],
+        }),
+      });
+      const json = await response.json();
+      setGeneratingSourceId("");
+      if (!response.ok) {
+        setError(formatError(json.error || "출처 기반 가이드 생성에 실패했습니다."));
+        return;
+      }
+      router.push(`/admin/archive/content/${json.id}`);
+    } catch (requestError) {
+      setGeneratingSourceId("");
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "출처 기반 생성 요청이 너무 오래 걸렸습니다. 잠시 후 다시 시도해 주세요.",
+      );
     }
-    router.push(`/admin/archive/content/${json.id}`);
   };
 
   const updateSourceStatus = async (
@@ -434,6 +452,25 @@ export default function AdminArchivePage() {
       </div>
     </main>
   );
+}
+
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 45_000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("생성 시간이 예상보다 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function SourceStatusBadge({ status }: { status: "pending" | "accepted" | "hold" | "excluded" }) {

@@ -35,12 +35,26 @@ export async function POST(request: Request) {
   if (error) return error;
 
   const body = await request.json().catch(() => ({}));
-  const generated = await generateArchiveContent({
-    topic: body.topic,
-    category: body.category,
-    keywords: Array.isArray(body.keywords) ? body.keywords : [],
-    sourceCandidates: Array.isArray(body.sourceCandidates) ? body.sourceCandidates : [],
-  });
+  let generated;
+
+  try {
+    generated = await generateArchiveContent({
+      topic: body.topic,
+      category: body.category,
+      keywords: Array.isArray(body.keywords) ? body.keywords : [],
+      sourceCandidates: Array.isArray(body.sourceCandidates) ? body.sourceCandidates : [],
+    });
+  } catch (generationError) {
+    return NextResponse.json(
+      {
+        error:
+          generationError instanceof Error
+            ? generationError.message
+            : "가이드 생성 중 오류가 발생했습니다.",
+      },
+      { status: 500 },
+    );
+  }
 
   const title = generated.guide_data.title;
   const slug = await createUniqueSlug(adminClient!, title);
