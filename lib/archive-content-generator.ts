@@ -32,6 +32,7 @@ const GENERATION_TIMEOUT_MS = 35_000;
 const MAX_SOURCE_CANDIDATES = 3;
 const MAX_ABSTRACT_LENGTH = 500;
 const MAX_EXCERPT_LENGTH = 320;
+const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 
 export async function generateArchiveContent(input: GenerateArchiveContentInput): Promise<GeneratedArchiveContent> {
   const picked = input.topic
@@ -56,6 +57,44 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
     sourceCandidates: sourceCandidates.slice(0, MAX_SOURCE_CANDIDATES).map(compactSourceCandidate),
   });
 
+  const parsed = await generateWithFallback(prompt);
+
+  validateGeneratedContent(parsed.guide_data, parsed.naver_summary);
+
+  return {
+    guide_data: parsed.guide_data,
+    naver_summary: normalizeNaverSummary(parsed.naver_summary),
+    source_candidates: normalizeSourceNotes(parsed.source_notes, sourceCandidates),
+  };
+}
+
+async function generateWithFallback(prompt: string) {
+  const errors: string[] = [];
+
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    try {
+      return await generateWithGemini(prompt);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "Gemini generation failed");
+    }
+  } else {
+    errors.push("GOOGLE_GENERATIVE_AI_API_KEY is missing");
+  }
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      return await generateWithOpenAI(prompt);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "OpenAI generation failed");
+    }
+  } else {
+    errors.push("OPENAI_API_KEY is missing");
+  }
+
+  throw new Error(errors.join(" | "));
+}
+
+async function generateWithGemini(prompt: string) {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is missing");
@@ -72,18 +111,73 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
     GENERATION_TIMEOUT_MS,
     "AI 가이드 생성 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.",
   );
-  const parsed = JSON.parse(stripJsonFence(result.response.text())) as {
+
+  return JSON.parse(stripJsonFence(result.response.text())) as {
     guide_data: GeneratedGuideData;
     naver_summary: NaverBlogSummary;
     source_notes?: ArchiveSourceCandidate[];
   };
+}
 
-  validateGeneratedContent(parsed.guide_data, parsed.naver_summary);
+async function generateWithOpenAI(prompt: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is missing");
+  }
 
-  return {
-    guide_data: parsed.guide_data,
-    naver_summary: normalizeNaverSummary(parsed.naver_summary),
-    source_candidates: normalizeSourceNotes(parsed.source_notes, sourceCandidates),
+  const response = await withTimeout(
+    fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_ARCHIVE_MODEL || DEFAULT_OPENAI_MODEL,
+        input: prompt,
+        max_output_tokens: 2500,
+        text: {
+          format: {
+            type: "json_object",
+          },
+        },
+      }),
+    }),
+    GENERATION_TIMEOUT_MS,
+    "OpenAI 생성 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.",
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+  }
+
+  const json = (await response.json()) as {
+    output_text?: string;
+    output?: Array<{
+      type?: string;
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
+  };
+
+  const text =
+    json.output_text ||
+    json.output
+      ?.flatMap((item) => item.content || [])
+      .find((item) => item.type === "output_text" && item.text)
+      ?.text;
+
+  if (!text) {
+    throw new Error("OpenAI API returned an empty response");
+  }
+
+  return JSON.parse(stripJsonFence(text)) as {
+    guide_data: GeneratedGuideData;
+    naver_summary: NaverBlogSummary;
+    source_notes?: ArchiveSourceCandidate[];
   };
 }
 

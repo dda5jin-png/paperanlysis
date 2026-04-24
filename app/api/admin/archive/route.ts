@@ -118,5 +118,9 @@ function formatGenerationError(message: string) {
     return "Gemini API 키가 설정되지 않았습니다. Vercel 환경변수를 확인해 주세요.";
   }
 
+  if (normalized.includes("openai_api_key is missing")) {
+    return "OpenAI API 키가 설정되지 않았습니다. Vercel 환경변수를 확인해 주세요.";
+  }
+
   return message;
 }
