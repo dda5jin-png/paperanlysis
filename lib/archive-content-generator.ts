@@ -57,7 +57,22 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
     sourceCandidates: sourceCandidates.slice(0, MAX_SOURCE_CANDIDATES).map(compactSourceCandidate),
   });
 
-  const parsed = await generateWithFallback(prompt);
+  let parsed: {
+    guide_data: GeneratedGuideData;
+    naver_summary: NaverBlogSummary;
+    source_notes?: ArchiveSourceCandidate[];
+  };
+
+  try {
+    parsed = await generateWithFallback(prompt);
+  } catch (_error) {
+    parsed = buildTemplateFallbackContent({
+      topic: picked.topic,
+      category: picked.category,
+      keywords: picked.keywords,
+      sourceCandidates,
+    });
+  }
 
   validateGeneratedContent(parsed.guide_data, parsed.naver_summary);
 
@@ -66,6 +81,107 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
     naver_summary: normalizeNaverSummary(parsed.naver_summary),
     source_candidates: normalizeSourceNotes(parsed.source_notes, sourceCandidates),
   };
+}
+
+function buildTemplateFallbackContent(input: {
+  topic: string;
+  category: string;
+  keywords: string[];
+  sourceCandidates: NormalizedAcademicWork[];
+}) {
+  const sourceNotes = normalizeSourceNotes(undefined, input.sourceCandidates);
+  const sourceTitles = sourceNotes.slice(0, 3).map((source) => source.title);
+  const authors = sourceNotes.flatMap((source) => source.authors).slice(0, 3);
+  const tags = buildFallbackTags(input.topic, input.keywords);
+
+  return {
+    guide_data: {
+      title: `${input.topic} 핵심 정리`,
+      one_line_summary: `${input.topic}을 준비할 때 먼저 점검해야 할 기준과 실행 순서를 경량 초안으로 정리했습니다.`,
+      summary: `${input.topic}은 자료를 많이 찾는 것보다 방향을 먼저 좁히는 것이 중요합니다. 현재 버전은 무료 운영 모드 기준의 경량 초안으로, 수집된 source 후보를 바탕으로 바로 적용할 수 있는 기준과 체크리스트 중심으로 구성했습니다. 이후 운영자가 출처를 더 검토하면서 내용을 보강하는 구조를 전제로 합니다.`,
+      category: input.category,
+      tags,
+      reading_time: "3분",
+      sections: {
+        when_to_use: `${input.topic}의 방향을 먼저 잡아야 할 때, 관련 선행연구를 읽기 전에 핵심 기준을 빠르게 정리하고 싶을 때, 지도교수 피드백 전에 초안 구조를 점검하고 싶을 때 유용합니다.`,
+        core_concepts: [
+          `${input.topic}에서는 연구 목적과 범위를 먼저 명확히 해야 합니다.`,
+          input.keywords.length > 0
+            ? `현재 초안은 ${input.keywords.join(", ")} 같은 키워드를 중심으로 정리되었습니다.`
+            : "현재 초안은 주제 관련 핵심 개념을 중심으로 정리되었습니다.",
+          sourceTitles.length > 0
+            ? `검토 중인 출처 후보로는 ${sourceTitles.join(", ")} 등이 있습니다.`
+            : "검토 중인 출처 후보는 관리자 화면에서 추가 확인이 필요합니다.",
+        ].join("\n\n"),
+        practical_steps: [
+          "1. 연구 목적을 한 문장으로 먼저 적습니다.",
+          "2. 다루지 않을 범위까지 함께 적어 주제를 좁힙니다.",
+          "3. 관련 선행연구 초록 3~5개를 읽고 반복되는 개념을 표시합니다.",
+          "4. 연구질문이나 핵심 검토 포인트를 2~3개로 압축합니다.",
+          "5. 위 내용을 실제 목차나 발표 구조로 연결해 봅니다.",
+        ].join("\n\n"),
+        common_mistakes: [
+          "주제를 너무 넓게 잡아 자료만 많아지고 논지가 약해지는 경우",
+          "선행연구를 충분히 확인하지 않고 결론을 먼저 정하는 경우",
+          "키워드만 정리하고 실제 연구문제로 연결하지 못하는 경우",
+          "인용 가능한 출처보다 주장 범위가 더 넓어지는 경우",
+        ].join("\n\n"),
+        checklist: [
+          "주제를 한 문장으로 설명할 수 있다.",
+          "연구 범위와 제외 범위를 구분했다.",
+          "관련 초록 3편 이상을 확인했다.",
+          "핵심 키워드를 3~5개로 정리했다.",
+          "연구질문 또는 검토 질문을 만들었다.",
+          "목차로 연결 가능한지 점검했다.",
+        ],
+      },
+    },
+    naver_summary: {
+      naver_title: `${input.topic} 정리: 논문작성 전에 먼저 점검할 기준`,
+      intro: `${input.topic}은 처음부터 길을 넓게 잡으면 자료는 많아도 정리가 잘 안 되는 경우가 많습니다. 그래서 이번에는 무료 운영용 경량 모드 기준으로, 논문 작성 전에 먼저 확인해야 할 핵심 기준과 실행 순서를 짧게 정리했습니다. 긴 설명보다 바로 적용 가능한 기준 위주로 보면 훨씬 도움이 됩니다.`,
+      key_points: [
+        `${input.topic}은 먼저 연구 목적과 범위를 좁히는 단계가 가장 중요합니다. 이 기준이 없으면 선행연구를 읽어도 방향이 쉽게 흔들립니다.`,
+        sourceTitles.length > 0
+          ? `이번 초안은 ${sourceTitles.join(", ")} 같은 출처 후보를 참고 대상으로 두고, 실제 작성 전에 어떤 기준을 먼저 잡아야 하는지 빠르게 확인할 수 있게 구성했습니다.`
+          : "이번 초안은 출처 후보를 참고 대상으로 두고, 실제 작성 전에 어떤 기준을 먼저 잡아야 하는지 빠르게 확인할 수 있게 구성했습니다.",
+        "실무에서는 연구 목적 한 줄 정리, 제외 범위 설정, 선행연구 초록 검토, 연구질문 압축 순서로 접근하면 초안 구조를 훨씬 안정적으로 만들 수 있습니다.",
+        authors.length > 0
+          ? `${authors.join(", ")} 등으로 확인된 관련 흐름처럼 반복되는 개념과 논점을 먼저 표시해 두면 본문 작성과 발표 준비가 쉬워집니다.`
+          : "반복되는 개념과 논점을 먼저 표시해 두면 본문 작성과 발표 준비가 쉬워집니다.",
+      ],
+      checklist: [
+        "주제를 한 문장으로 적기",
+        "제외할 범위까지 함께 적기",
+        "초록 3~5개 읽기",
+        "반복 키워드 표시하기",
+        "연구질문 2~3개 압축하기",
+        "목차 연결 가능성 확인하기",
+      ],
+      cta: "👉 자세한 내용은 아래 링크에서 확인하세요",
+      hashtags: [
+        "#논문작성",
+        "#연구주제",
+        "#선행연구",
+        "#연구질문",
+        "#논문초안",
+        "#논문가이드",
+        "#학술글쓰기",
+        "#석사논문",
+      ],
+    },
+    source_notes: sourceNotes,
+  };
+}
+
+function buildFallbackTags(topic: string, keywords: string[]) {
+  return Array.from(
+    new Set(
+      [topic, ...keywords]
+        .flatMap((value) => value.split(/[,\s]+/))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 6);
 }
 
 async function generateWithFallback(prompt: string) {
