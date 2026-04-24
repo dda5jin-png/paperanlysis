@@ -47,9 +47,9 @@ async function getPublishedContent(slug: string): Promise<ArchiveContent | null>
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const content = await getPublishedContent(params.slug);
-  if (!content) return { title: "가이드를 찾을 수 없습니다" };
+  if (!content) return { title: "아티클을 찾을 수 없습니다" };
   return {
-    title: `${content.title} | 논문작성 가이드 아카이브`,
+    title: `${content.title} | 논문 아티클`,
     description: content.guide_data.summary,
     keywords: content.tags,
     alternates: { canonical: `/archive/${content.slug}` },
@@ -105,7 +105,7 @@ export default async function PublishedArchiveContentPage({ params }: Props) {
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-700">Source Notes</p>
                 <h2 className="text-2xl font-black text-ink-900">출처 원문과 한국어 정리</h2>
                 <p className="text-sm leading-7 text-ink-600">
-                  아래 자료는 이 가이드를 구성할 때 검토한 원문 후보입니다. 원문 일부와 함께 한국어로 핵심을 짧게 정리했습니다.
+                  아래 자료는 이 아티클을 구성할 때 검토한 원문 후보입니다. 원문 일부와 함께 한국어로 핵심을 짧게 정리했습니다.
                 </p>
               </div>
 

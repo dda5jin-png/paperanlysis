@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { GuidesClient } from "@/components/guides/GuidesClient";
 
 export const metadata: Metadata = {
-  title: "논문작성 가이드 아카이브 | 검증 출처 기반 연구 글쓰기 자료",
+  title: "논문 가이드 | 논문 준비 전체 흐름 로드맵",
   description:
-    "공신력 있는 원문을 기반으로 번역·정리한 논문작성 가이드 아카이브. 주제 설정, 선행연구, 연구질문, 방법론, 참고문헌, 발표자료를 다룹니다.",
+    "논문 준비 전체 흐름을 한 페이지에서 보는 로드맵입니다. 주제 설정, 선행연구, 연구설계, 데이터, 분석, 구조 작성, 발표 단계를 소개하고 관련 아티클로 연결합니다.",
   alternates: { canonical: "/guides" },
 };
 

@@ -1,139 +1,107 @@
-"use client";
-
-import { useMemo, useState } from "react";
-import { ArticleListItem } from "@/components/guides/ArticleListItem";
+import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { GUIDE_ARTICLES } from "@/lib/guide-data";
+import { GUIDE_CATEGORIES } from "@/lib/guide-data";
 
-const categoryTabs = [
-  { slug: "all", name: "전체", categories: [] },
-  { slug: "topic", name: "주제설정", categories: ["topic"] },
-  { slug: "literature-review", name: "선행연구", categories: ["literature-review"] },
-  { slug: "research-design", name: "연구설계", categories: ["research-question", "methodology"] },
-  { slug: "analysis", name: "분석", categories: ["data-analysis"] },
-  { slug: "presentation", name: "발표", categories: ["presentation"] },
-];
+const stageLinks: Record<string, { href: string; label: string }[]> = {
+  "주제 설정": [
+    { href: "/archive/부동산-석사-논문이-정체가-모호하다는-평가를-받는-이유", label: "논문 정체성이 모호해지는 이유" },
+    { href: "/archive/같은-부동산-주제라도-논문이-완전히-달라지는-이유", label: "같은 주제라도 논문이 달라지는 이유" },
+  ],
+  "논문 구조 작성": [
+    { href: "/archive/논문-쓰기-전에-심사규정-pdf부터-받아야-하는-이유", label: "심사규정 PDF부터 받아야 하는 이유" },
+    { href: "/archive/석사-논문은-최소-분량만-채우면-왜-위험할까", label: "최소 분량만 채우면 위험한 이유" },
+    { href: "/archive/조사보고서와-학위논문은-어디서-갈리는가", label: "조사보고서와 학위논문의 차이" },
+  ],
+};
 
 export function GuidesClient() {
-  const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [sort, setSort] = useState<"latest" | "popular">("latest");
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return [...GUIDE_ARTICLES]
-      .sort((a, b) =>
-        sort === "popular"
-          ? b.popularity - a.popularity
-          : Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
-      )
-      .filter((article) => {
-        const matchesQuery =
-          !q ||
-          article.title.toLowerCase().includes(q) ||
-          article.lead.toLowerCase().includes(q) ||
-          article.tags.some((tag) => tag.toLowerCase().includes(q));
-        const activeTab = categoryTabs.find((category) => category.slug === activeCategory);
-        const matchesCategory =
-          activeCategory === "all" || Boolean(activeTab?.categories.includes(article.category));
-        return matchesQuery && matchesCategory;
-      });
-  }, [activeCategory, query, sort]);
-
   return (
     <>
       <section className="border-b border-ink-200 bg-white">
         <Container className="py-12 lg:py-16">
-          <SectionLabel>Verified Academic Archive</SectionLabel>
+          <SectionLabel>Research Writing Roadmap</SectionLabel>
           <h1 className="mt-4 text-3xl font-black tracking-tight text-ink-900 sm:text-4xl">
-            논문작성 가이드
+            논문 가이드
           </h1>
-          <p className="mt-4 max-w-2xl leading-7 text-ink-700">
-            공신력 있는 원문을 기반으로 번역·정리한 논문작성 지식 아카이브입니다.
-            카테고리를 고르고, 필요한 가이드만 한 목록에서 확인하세요.
+          <p className="mt-4 max-w-3xl leading-7 text-ink-700">
+            이 페이지는 논문을 준비할 때 어떤 단계들이 있는지 한 번에 보여주는 전체 지도입니다.
+            실제로 읽고 해결하는 콘텐츠는 <strong>논문 아티클</strong>에 쌓고, 이곳에서는 지금 내 위치와 다음 단계만
+            빠르게 확인하도록 구성했습니다.
           </p>
 
-          <div className="mt-8 grid max-w-3xl gap-3 md:grid-cols-[1fr_auto]">
-            <div className="relative">
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="가이드 검색: 연구질문, APA, 발표자료"
-                className="h-12 w-full rounded-xl border border-ink-200 bg-white pl-11 pr-4 text-[15px] outline-none placeholder:text-ink-500 focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
-              />
-              <svg
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-500"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </div>
-            <div className="flex rounded-xl border border-ink-200 bg-ink-50 p-1">
-              {[
-                ["latest", "최신순"],
-                ["popular", "인기순"],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => setSort(value as "latest" | "popular")}
-                  className={`h-10 rounded-lg px-4 text-sm font-bold transition ${
-                    sort === value ? "bg-white text-ink-900 shadow-sm" : "text-ink-500"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </Container>
-      </section>
-
-      <section className="sticky top-16 z-30 border-b border-ink-200 bg-white/90 backdrop-blur">
-        <Container>
-          <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin">
-            {categoryTabs.map((category) => {
-              const active = activeCategory === category.slug;
-              return (
-                <button
-                  key={category.slug}
-                  onClick={() => setActiveCategory(category.slug)}
-                  className={`h-9 shrink-0 rounded-full border px-4 text-sm font-semibold transition ${
-                    active
-                      ? "border-ink-900 bg-ink-900 text-white"
-                      : "border-ink-200 bg-white text-ink-700 hover:border-ink-300"
-                  }`}
-                >
-                  {category.name}
-                </button>
-              );
-            })}
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/archive"
+              className="inline-flex items-center rounded-xl bg-brand-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-800"
+            >
+              논문 아티클 보러가기
+            </Link>
+            <Link
+              href="/analyzer"
+              className="inline-flex items-center rounded-xl border border-ink-200 bg-white px-5 py-3 text-sm font-bold text-ink-800 hover:border-ink-300"
+            >
+              논문 분석기 열기
+            </Link>
           </div>
         </Container>
       </section>
 
       <Container className="py-12 lg:py-16">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-black text-ink-900">Guide List</h2>
-            <p className="mt-1 text-sm text-ink-500">총 {filtered.length}개 가이드</p>
-          </div>
-        </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          {GUIDE_CATEGORIES.map((category, index) => (
+            <section
+              key={category.slug}
+              className="rounded-[28px] border border-ink-200 bg-white p-7 shadow-sm transition hover:border-ink-300"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-black text-brand-700">
+                  {index + 1}
+                </div>
+                <div>
+                  <h2 className="text-xl font-black tracking-tight text-ink-900">{category.name}</h2>
+                  <p className="mt-1 text-sm leading-6 text-ink-600">{category.desc}</p>
+                </div>
+              </div>
 
-        <div className="divide-y divide-ink-200 border-y border-ink-200">
-          {filtered.length > 0 ? (
-            filtered.map((article) => <ArticleListItem key={article.slug} article={article} />)
-          ) : (
-            <div className="py-16 text-center text-sm font-semibold text-ink-500">
-              조건에 맞는 가이드가 없습니다.
-            </div>
-          )}
+              <div className="mt-5 rounded-2xl border border-ink-100 bg-ink-50 p-4">
+                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-ink-500">
+                  이 단계에서 주로 하는 일
+                </div>
+                <p className="mt-2 text-sm leading-7 text-ink-700">
+                  {category.name === "주제 설정" && "관심 분야를 좁히고, 어떤 질문을 논문으로 만들지 결정합니다."}
+                  {category.name === "선행연구 조사" && "관련 논문을 모으고 연구 공백과 비교 기준을 정리합니다."}
+                  {category.name === "연구질문" && "내 연구가 정확히 무엇에 답하려는지 한 문장으로 고정합니다."}
+                  {category.name === "연구설계 / 방법론" && "양적, 질적, 혼합 접근 중 내 주제에 맞는 설계를 고릅니다."}
+                  {category.name === "데이터 분석" && "자료를 정리하고, 어떤 분석 결과를 어떻게 해석할지 준비합니다."}
+                  {category.name === "논문 구조 작성" && "심사규정, 분량, 목차, 장 구성처럼 실제 작성 구조를 잡습니다."}
+                  {category.name === "인용 / 참고문헌" && "본문 인용과 참고문헌 형식을 맞추고 출처 추적성을 정리합니다."}
+                  {category.name === "발표자료 / PPT" && "예심, 본심, 디펜스 발표에서 무엇을 어떻게 보여줄지 구성합니다."}
+                </p>
+              </div>
+
+              {stageLinks[category.name]?.length ? (
+                <div className="mt-5">
+                  <div className="text-sm font-black text-ink-900">관련 아티클</div>
+                  <div className="mt-3 space-y-2">
+                    {stageLinks[category.name].map((article) => (
+                      <Link
+                        key={article.href}
+                        href={article.href}
+                        className="block rounded-2xl border border-ink-100 px-4 py-3 text-sm font-semibold text-ink-700 transition hover:border-brand-200 hover:text-brand-700"
+                      >
+                        {article.label} →
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-dashed border-ink-200 px-4 py-4 text-sm font-semibold text-ink-500">
+                  이 단계의 아티클은 순차적으로 추가될 예정입니다.
+                </div>
+              )}
+            </section>
+          ))}
         </div>
       </Container>
     </>

@@ -3,30 +3,13 @@ import { unstable_noStore as noStore } from "next/cache";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { createAdminClient } from "@/lib/supabase/server";
-import type { ArchiveContent } from "@/lib/archive-content-types";
+import { getPublishedArchiveContents } from "@/lib/archive-public";
 
 export const dynamic = "force-dynamic";
 
-async function getLatestArchiveContents(): Promise<ArchiveContent[]> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return [];
-  }
-
-  const supabase = await createAdminClient();
-  const { data } = await supabase
-    .from("archive_contents")
-    .select("*")
-    .eq("content_status", "published")
-    .order("published_at", { ascending: false })
-    .limit(4);
-
-  return (data ?? []) as ArchiveContent[];
-}
-
 export default async function HomePage() {
   noStore();
-  const latestArchiveContents = await getLatestArchiveContents();
+  const latestArchiveContents = await getPublishedArchiveContents(4);
   const featuredArchive = latestArchiveContents[0] ?? null;
   const secondaryArchives = latestArchiveContents.slice(featuredArchive ? 1 : 0, 4);
 
@@ -38,21 +21,21 @@ export default async function HomePage() {
           <div className="max-w-3xl">
             <SectionLabel>Research Writing Guide Archive</SectionLabel>
             <h1 className="mt-5 text-[34px] font-black leading-[1.12] tracking-tight text-ink-900 sm:text-[46px] lg:text-[58px]">
-              논문작성은 가이드로,
+              논문 작성의 막히는 순간을
               <br className="hidden sm:block" />
-              논문 이해는 분석기로.
+              아티클과 분석기로 풀어냅니다.
             </h1>
             <p className="mt-6 max-w-2xl text-[17px] leading-8 text-ink-700 sm:text-[18px]">
-              공신력 있는 원문을 기반으로 정리한 논문작성 가이드와 PDF 자동 분석 도구를
-              분리해 제공합니다. 필요한 작업으로 바로 이동하세요.
+              실전형 논문 아티클은 지금 필요한 문제를 바로 해결하도록 돕고, 논문 가이드는
+              전체 흐름을 한 번에 조망할 수 있게 정리했습니다. PDF 분석 도구와 함께 필요한 작업으로 이동하세요.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/analyzer">
-                <Button size="lg">논문 분석하기</Button>
+              <Link href="/archive">
+                <Button size="lg">논문 아티클 보기</Button>
               </Link>
-              <Link href="/guides">
+              <Link href="/analyzer">
                 <Button variant="secondary" size="lg">
-                  가이드 보러가기
+                  논문 분석하기
                 </Button>
               </Link>
             </div>
@@ -69,7 +52,7 @@ export default async function HomePage() {
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                  대표 가이드 아티클
+                  대표 논문 아티클
                 </span>
                 <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-ink-500 ring-1 ring-inset ring-ink-200">
                   {featuredArchive.category}
@@ -99,42 +82,36 @@ export default async function HomePage() {
               </span>
             </Link>
           ) : (
-            <Link
-              href="/guides"
-              className="group rounded-[28px] border border-ink-200 bg-white p-7 transition hover:border-brand-600 hover:shadow-sm sm:p-8"
-            >
+            <div className="rounded-[28px] border border-ink-200 bg-white p-7 sm:p-8">
               <div className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                논문작성 가이드
+                논문 아티클
               </div>
               <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">
-                작성 단계별 지식 아카이브
+                실제 아티클이 여기에 쌓입니다
               </h2>
               <p className="mt-3 leading-7 text-ink-700">
-                주제 설정, 선행연구, 연구설계, 분석, 발표까지 논문 작성 흐름에 맞춰
-                구조화된 가이드를 확인합니다.
+                연구주제, 심사규정, 논문 구조, 데이터 전처리처럼 실제로 막히는 지점을 하나씩
+                푸는 아티클이 순차적으로 공개됩니다.
               </p>
-              <span className="mt-6 inline-flex font-bold text-brand-700 transition group-hover:translate-x-1">
-                가이드 목록 보기 →
-              </span>
-            </Link>
+            </div>
           )}
 
           <Link
-            href="/analyzer"
-            className="group rounded-[28px] border border-emerald-200 bg-emerald-50/60 p-7 transition hover:border-emerald-500 hover:shadow-sm sm:p-8"
+            href="/guides"
+            className="group rounded-[28px] border border-ink-200 bg-ink-50/60 p-7 transition hover:border-ink-400 hover:shadow-sm sm:p-8"
           >
-            <div className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
-              논문 분석기
+            <div className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-ink-800">
+              논문 가이드
             </div>
             <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">
-              PDF 업로드 → 자동 분석
+              한 페이지로 보는 전체 로드맵
             </h2>
             <p className="mt-3 leading-7 text-ink-700">
-              논문 PDF를 올리면 연구목적, 방법, 결과, 결론을 섹션별로 정리합니다.
-              읽기보다 먼저 구조를 잡고 싶을 때 사용하세요.
+              주제 설정, 선행연구, 연구설계, 데이터, 분석, 작성, 발표까지 논문 준비 전체 흐름을
+              빠르게 훑고 필요한 아티클로 이동할 수 있게 정리합니다.
             </p>
-            <span className="mt-6 inline-flex font-bold text-emerald-700 transition group-hover:translate-x-1">
-              바로 분석하기 →
+            <span className="mt-6 inline-flex font-bold text-ink-700 transition group-hover:translate-x-1">
+              전체 흐름 보기 →
             </span>
           </Link>
         </Container>
@@ -146,15 +123,15 @@ export default async function HomePage() {
             <div>
               <SectionLabel>Latest Archive</SectionLabel>
               <h2 className="mt-4 text-3xl font-black tracking-tight text-ink-900">
-                최신 아카이브
+                최신 논문 아티클
               </h2>
               <p className="mt-3 max-w-2xl text-[16px] leading-7 text-ink-700">
-                실제로 발행된 아카이브 콘텐츠를 최신순으로 보여줍니다. 출처 기반으로 정리된
-                한국어 가이드부터 먼저 확인해 보세요.
+                실제로 발행된 아티클을 최신순으로 보여줍니다. 논문을 쓰면서 자주 막히는 지점을
+                문제 해결형 콘텐츠로 바로 읽어보세요.
               </p>
             </div>
-            <Link href="/guides" className="hidden text-sm font-bold text-brand-700 hover:text-brand-800 sm:inline-flex">
-              가이드 전체 보기 →
+            <Link href="/archive" className="hidden text-sm font-bold text-brand-700 hover:text-brand-800 sm:inline-flex">
+              아티클 전체 보기 →
             </Link>
           </div>
 
