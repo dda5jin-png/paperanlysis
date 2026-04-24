@@ -33,6 +33,7 @@ type SourceInboxItem = {
     published_year?: string;
     doi?: string;
     relevance_score?: number;
+    editorial_status?: "pending" | "accepted" | "hold" | "excluded";
   } | null;
   checked_at: string;
   created_at: string;
@@ -62,6 +63,7 @@ export default function AdminArchivePage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generatingSourceId, setGeneratingSourceId] = useState("");
+  const [updatingSourceId, setUpdatingSourceId] = useState("");
   const [topic, setTopic] = useState("");
   const [category, setCategory] = useState("paper-structure");
   const [error, setError] = useState("");
@@ -142,6 +144,39 @@ export default function AdminArchivePage() {
       return;
     }
     router.push(`/admin/archive/content/${json.id}`);
+  };
+
+  const updateSourceStatus = async (
+    sourceId: string,
+    editorialStatus: "pending" | "accepted" | "hold" | "excluded",
+  ) => {
+    setUpdatingSourceId(sourceId);
+    setError("");
+    const response = await fetch(`/api/admin/archive/sources/${sourceId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ editorial_status: editorialStatus }),
+    });
+    const json = await response.json();
+    setUpdatingSourceId("");
+    if (!response.ok) {
+      setError(formatError(json.error || "출처 상태 변경에 실패했습니다."));
+      return;
+    }
+    setSources((current) =>
+      current.map((item) =>
+        item.id === sourceId
+          ? {
+              ...item,
+              raw_metadata: {
+                ...(item.raw_metadata || {}),
+                editorial_status: editorialStatus,
+              },
+            }
+          : item,
+      ),
+    );
   };
 
   return (
@@ -294,6 +329,7 @@ export default function AdminArchivePage() {
                         {source.raw_metadata.published_year}
                       </span>
                     )}
+                    <SourceStatusBadge status={source.raw_metadata?.editorial_status || "pending"} />
                   </div>
 
                   <h3 className="mt-3 text-lg font-black leading-7 text-ink-900">{source.title}</h3>
@@ -330,6 +366,30 @@ export default function AdminArchivePage() {
                       이 출처로 가이드 초안 만들기
                     </button>
                   </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-ink-100 pt-3">
+                    <SourceStatusButton
+                      active={(source.raw_metadata?.editorial_status || "pending") === "accepted"}
+                      loading={updatingSourceId === source.id}
+                      onClick={() => updateSourceStatus(source.id, "accepted")}
+                    >
+                      채택
+                    </SourceStatusButton>
+                    <SourceStatusButton
+                      active={(source.raw_metadata?.editorial_status || "pending") === "hold"}
+                      loading={updatingSourceId === source.id}
+                      onClick={() => updateSourceStatus(source.id, "hold")}
+                    >
+                      보류
+                    </SourceStatusButton>
+                    <SourceStatusButton
+                      active={(source.raw_metadata?.editorial_status || "pending") === "excluded"}
+                      loading={updatingSourceId === source.id}
+                      onClick={() => updateSourceStatus(source.id, "excluded")}
+                    >
+                      제외
+                    </SourceStatusButton>
+                  </div>
                 </article>
               ))}
             </div>
@@ -337,6 +397,51 @@ export default function AdminArchivePage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function SourceStatusBadge({ status }: { status: "pending" | "accepted" | "hold" | "excluded" }) {
+  const label = {
+    pending: "미분류",
+    accepted: "채택",
+    hold: "보류",
+    excluded: "제외",
+  }[status];
+
+  const className = {
+    pending: "bg-ink-100 text-ink-600",
+    accepted: "bg-emerald-50 text-emerald-700",
+    hold: "bg-amber-50 text-amber-700",
+    excluded: "bg-rose-50 text-rose-700",
+  }[status];
+
+  return <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", className)}>{label}</span>;
+}
+
+function SourceStatusButton({
+  children,
+  active,
+  loading,
+  onClick,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  loading: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={cn(
+        "rounded-xl border px-3 py-2 text-xs font-bold transition disabled:opacity-60",
+        active
+          ? "border-ink-900 bg-ink-900 text-white"
+          : "border-ink-200 bg-white text-ink-600 hover:bg-ink-50",
+      )}
+    >
+      {loading ? "저장 중..." : children}
+    </button>
   );
 }
 
