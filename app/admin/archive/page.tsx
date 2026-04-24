@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, Plus, Send } from "lucide-react";
+import { FileSearch, FileText, Loader2, Plus, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ArchiveListItem = {
@@ -17,6 +17,25 @@ type ArchiveListItem = {
   created_at: string;
   updated_at: string;
   published_at: string | null;
+};
+
+type SourceInboxItem = {
+  id: string;
+  title: string;
+  organization: string;
+  url: string;
+  source_type: string;
+  language: string;
+  authority_note: string;
+  raw_metadata: {
+    authors?: string[];
+    abstract?: string;
+    published_year?: string;
+    doi?: string;
+    relevance_score?: number;
+  } | null;
+  checked_at: string;
+  created_at: string;
 };
 
 const categoryOptions = [
@@ -39,8 +58,10 @@ function formatError(error: string) {
 export default function AdminArchivePage() {
   const router = useRouter();
   const [contents, setContents] = useState<ArchiveListItem[]>([]);
+  const [sources, setSources] = useState<SourceInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generatingSourceId, setGeneratingSourceId] = useState("");
   const [topic, setTopic] = useState("");
   const [category, setCategory] = useState("paper-structure");
   const [error, setError] = useState("");
@@ -54,6 +75,7 @@ export default function AdminArchivePage() {
       setError(formatError(json.error || "목록을 불러오지 못했습니다."));
     } else {
       setContents(json.contents || []);
+      setSources(json.sources || []);
     }
     setLoading(false);
   };
@@ -79,6 +101,44 @@ export default function AdminArchivePage() {
     setGenerating(false);
     if (!response.ok) {
       setError(formatError(json.error || "가이드 생성에 실패했습니다."));
+      return;
+    }
+    router.push(`/admin/archive/content/${json.id}`);
+  };
+
+  const handleGenerateFromSource = async (source: SourceInboxItem) => {
+    setGeneratingSourceId(source.id);
+    setError("");
+    const response = await fetch("/api/admin/archive", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: source.title,
+        category,
+        keywords: [
+          source.organization,
+          source.raw_metadata?.published_year,
+          ...(source.raw_metadata?.authors || []).slice(0, 2),
+        ].filter(Boolean),
+        sourceCandidates: [
+          {
+            title: source.title,
+            source: source.organization,
+            url: source.url,
+            published_year: source.raw_metadata?.published_year || "",
+            doi: source.raw_metadata?.doi || "",
+            authors: source.raw_metadata?.authors || [],
+            abstract: source.raw_metadata?.abstract || "",
+            relevance_score: source.raw_metadata?.relevance_score || 1,
+          },
+        ],
+      }),
+    });
+    const json = await response.json();
+    setGeneratingSourceId("");
+    if (!response.ok) {
+      setError(formatError(json.error || "출처 기반 가이드 생성에 실패했습니다."));
       return;
     }
     router.push(`/admin/archive/content/${json.id}`);
@@ -189,6 +249,86 @@ export default function AdminArchivePage() {
                       </Link>
                       <QuickStatusButton id={item.id} status="published" label="Publish" onDone={loadContents} />
                     </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-10">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-black text-ink-900">Source Inbox</h2>
+              <p className="mt-1 text-sm text-ink-500">
+                주간 아카이빙으로 모은 출처 후보입니다. 검토 후 바로 가이드 초안으로 넘길 수 있습니다.
+              </p>
+            </div>
+            <span className="text-sm font-bold text-ink-500">{sources.length}개 후보</span>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center rounded-3xl border border-ink-200 bg-white p-12">
+              <Loader2 className="h-6 w-6 animate-spin text-brand-700" />
+            </div>
+          ) : sources.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-ink-300 bg-white p-10 text-center">
+              <FileSearch className="mx-auto h-9 w-9 text-ink-300" />
+              <p className="mt-3 text-sm font-semibold text-ink-700">
+                아직 수집된 source 후보가 없습니다. weekly-update를 먼저 한 번 실행해 주세요.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {sources.map((source) => (
+                <article key={source.id} className="rounded-3xl border border-ink-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                      {source.organization}
+                    </span>
+                    <span className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-bold text-ink-600">
+                      {source.source_type}
+                    </span>
+                    {source.raw_metadata?.published_year && (
+                      <span className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-bold text-ink-600">
+                        {source.raw_metadata.published_year}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="mt-3 text-lg font-black leading-7 text-ink-900">{source.title}</h3>
+                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink-600">
+                    {source.raw_metadata?.abstract || source.authority_note}
+                  </p>
+
+                  <div className="mt-4 text-xs leading-6 text-ink-500">
+                    {source.raw_metadata?.authors?.length ? `저자: ${source.raw_metadata.authors.slice(0, 3).join(", ")}` : "저자 정보 없음"}
+                  </div>
+                  <div className="text-xs leading-6 text-ink-500">
+                    검토 시각 {new Date(source.checked_at).toLocaleString("ko-KR")}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-ink-200 px-4 py-2 text-sm font-bold text-ink-700 hover:bg-ink-50"
+                    >
+                      원문 보기
+                    </a>
+                    <button
+                      onClick={() => handleGenerateFromSource(source)}
+                      disabled={generatingSourceId === source.id}
+                      className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-bold text-white hover:bg-ink-800 disabled:opacity-60"
+                    >
+                      {generatingSourceId === source.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      이 출처로 가이드 초안 만들기
+                    </button>
                   </div>
                 </article>
               ))}

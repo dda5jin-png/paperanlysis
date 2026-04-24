@@ -1,11 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { discoverAcademicSources } from "@/lib/source-integrations";
 import type { GeneratedGuideData, NaverBlogSummary } from "@/lib/archive-content-types";
+import type { NormalizedAcademicWork } from "@/lib/source-integrations";
 
 export type GenerateArchiveContentInput = {
   topic?: string;
   category?: string;
   keywords?: string[];
+  sourceCandidates?: NormalizedAcademicWork[];
 };
 
 export type GeneratedArchiveContent = {
@@ -32,10 +34,12 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
       }
     : DEFAULT_TOPICS[Math.floor(Math.random() * DEFAULT_TOPICS.length)];
 
-  const sourceCandidates = await discoverAcademicSources({
-    query: `${picked.topic} academic writing research guide`,
-    limit: 4,
-  });
+  const sourceCandidates = input.sourceCandidates?.length
+    ? input.sourceCandidates
+    : await discoverAcademicSources({
+        query: `${picked.topic} academic writing research guide`,
+        limit: 4,
+      });
 
   const prompt = buildArchiveContentPrompt({
     topic: picked.topic,

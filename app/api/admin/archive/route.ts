@@ -14,11 +14,20 @@ export async function GET() {
     .select("id,title,slug,category,tags,content_status,naver_status,created_at,updated_at,published_at")
     .order("created_at", { ascending: false });
 
-  if (dbError) {
-    return NextResponse.json({ error: dbError.message }, { status: 500 });
+  const { data: sourceData, error: sourceError } = await adminClient!
+    .from("sources")
+    .select("id,title,organization,url,source_type,language,authority_note,raw_metadata,checked_at,created_at")
+    .order("checked_at", { ascending: false })
+    .limit(12);
+
+  if (dbError || sourceError) {
+    return NextResponse.json({ error: dbError?.message || sourceError?.message }, { status: 500 });
   }
 
-  return NextResponse.json({ contents: data ?? [] });
+  return NextResponse.json({
+    contents: data ?? [],
+    sources: sourceData ?? [],
+  });
 }
 
 export async function POST(request: Request) {
@@ -30,6 +39,7 @@ export async function POST(request: Request) {
     topic: body.topic,
     category: body.category,
     keywords: Array.isArray(body.keywords) ? body.keywords : [],
+    sourceCandidates: Array.isArray(body.sourceCandidates) ? body.sourceCandidates : [],
   });
 
   const title = generated.guide_data.title;
