@@ -107,6 +107,20 @@ function formatGenerationError(message: string) {
   const normalized = message.toLowerCase();
 
   if (
+    (normalized.includes("quota exceeded") || normalized.includes("too many requests") || normalized.includes("429")) &&
+    normalized.includes("openai_api_key is missing")
+  ) {
+    return "Gemini 사용량은 초과됐고, OpenAI fallback 키가 현재 배포에 연결되지 않았습니다. Vercel에 OPENAI_API_KEY가 들어갔는지 확인한 뒤 새 배포를 실행해 주세요.";
+  }
+
+  if (
+    (normalized.includes("quota exceeded") || normalized.includes("too many requests") || normalized.includes("429")) &&
+    normalized.includes("openai api error")
+  ) {
+    return "Gemini 사용량은 초과됐고, OpenAI fallback 호출도 실패했습니다. OpenAI API 키와 결제/사용량 설정을 확인해 주세요.";
+  }
+
+  if (
     normalized.includes("429") ||
     normalized.includes("quota exceeded") ||
     normalized.includes("too many requests")
