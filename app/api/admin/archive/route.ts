@@ -45,13 +45,13 @@ export async function POST(request: Request) {
       sourceCandidates: Array.isArray(body.sourceCandidates) ? body.sourceCandidates : [],
     });
   } catch (generationError) {
+    const message =
+      generationError instanceof Error
+        ? formatGenerationError(generationError.message)
+        : "가이드 생성 중 오류가 발생했습니다.";
+
     return NextResponse.json(
-      {
-        error:
-          generationError instanceof Error
-            ? generationError.message
-            : "가이드 생성 중 오류가 발생했습니다.",
-      },
+      { error: message },
       { status: 500 },
     );
   }
@@ -101,4 +101,22 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9가-힣]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function formatGenerationError(message: string) {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("429") ||
+    normalized.includes("quota exceeded") ||
+    normalized.includes("too many requests")
+  ) {
+    return "AI 생성 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 Gemini API 요금제/결제 설정을 확인해 주세요.";
+  }
+
+  if (normalized.includes("google_generative_ai_api_key is missing")) {
+    return "Gemini API 키가 설정되지 않았습니다. Vercel 환경변수를 확인해 주세요.";
+  }
+
+  return message;
 }

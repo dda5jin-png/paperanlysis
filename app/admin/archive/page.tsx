@@ -55,6 +55,13 @@ function formatError(error: string) {
   if (error.includes("archive_contents") || error.includes("schema cache")) {
     return "archive_contents 테이블이 아직 준비되지 않았습니다. Supabase SQL Editor에서 supabase/archive-content-schema.sql 파일 내용을 실행한 뒤 새로고침해 주세요.";
   }
+  if (
+    error.toLowerCase().includes("quota exceeded") ||
+    error.toLowerCase().includes("too many requests") ||
+    error.includes("429")
+  ) {
+    return "AI 생성 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 Gemini API 결제/요금제 설정을 확인해 주세요.";
+  }
   return error;
 }
 
