@@ -38,7 +38,7 @@ export function GuideDetailClient({ article }: { article: GuideArticle }) {
     <main>
       <Container className="pt-8">
         <div className="text-sm text-ink-500">
-          <Link href="/guides" className="hover:text-ink-900">
+          <Link href="/guide" className="hover:text-ink-900">
             가이드
           </Link>
           {category && (
@@ -202,7 +202,7 @@ export function GuideDetailClient({ article }: { article: GuideArticle }) {
               </p>
               <div className="mt-5 flex flex-col sm:flex-row gap-3">
                 <Button onClick={() => router.push("/analyzer")}>논문 업로드하러 가기</Button>
-                <Button variant="secondary" onClick={() => router.push("/guides")}>
+                <Button variant="secondary" onClick={() => router.push("/guide")}>
                   가이드 더 보기
                 </Button>
               </div>

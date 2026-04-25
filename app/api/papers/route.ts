@@ -22,8 +22,32 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
+    const paperIds = (data ?? []).map((paper) => paper.id);
 
-    return NextResponse.json({ success: true, papers: data });
+    let merged = data ?? [];
+
+    if (paperIds.length > 0) {
+      const { data: analyses } = await supabase
+        .from("analyses")
+        .select("paper_id,result_json,created_at")
+        .eq("user_id", user.id)
+        .in("paper_id", paperIds)
+        .order("created_at", { ascending: false });
+
+      const latestByPaper = new Map<string, any>();
+      for (const analysis of analyses ?? []) {
+        if (analysis.paper_id && !latestByPaper.has(analysis.paper_id)) {
+          latestByPaper.set(analysis.paper_id, analysis.result_json);
+        }
+      }
+
+      merged = merged.map((paper) => {
+        const analysisResult = latestByPaper.get(paper.id);
+        return analysisResult ? { ...analysisResult, ...paper } : paper;
+      });
+    }
+
+    return NextResponse.json({ success: true, papers: merged });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

@@ -29,9 +29,10 @@ export function Footer() {
             title="서비스"
             items={[
               ["/", "홈"],
-              ["/archive", "논문 아티클"],
+              ["/guide", "논문 가이드"],
+              ["/blog", "논문 블로그"],
+              ["/resources", "자료실"],
               ["/analyzer", "논문분석기"],
-              ["/guides", "논문 가이드"],
               ["/pricing", "요금제"],
             ]}
           />

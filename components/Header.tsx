@@ -109,9 +109,10 @@ export default function Header() {
 
           <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
             <NavLink href="/" active={pathname === "/"}>홈</NavLink>
-            <NavLink href="/archive" active={pathname?.startsWith("/archive")}>논문 아티클</NavLink>
+            <NavLink href="/guide" active={pathname?.startsWith("/guide")}>논문 가이드</NavLink>
+            <NavLink href="/blog" active={pathname?.startsWith("/blog")}>논문 블로그</NavLink>
+            <NavLink href="/resources" active={pathname?.startsWith("/resources")}>자료실</NavLink>
             <NavLink href="/analyzer" active={pathname === "/analyzer"}>논문분석기</NavLink>
-            <NavLink href="/guides" active={pathname === "/guides"}>논문 가이드</NavLink>
             <NavLink href="/about" active={pathname === "/about"}>About</NavLink>
           </nav>
 
@@ -206,9 +207,10 @@ export default function Header() {
             <div className="container mx-auto px-6 py-4 space-y-1">
               {[
                 ["/", "홈"],
-                ["/archive", "논문 아티클"],
+                ["/guide", "논문 가이드"],
+                ["/blog", "논문 블로그"],
+                ["/resources", "자료실"],
                 ["/analyzer", "논문분석기"],
-                ["/guides", "논문 가이드"],
                 ["/about", "About"],
                 ["/editorial-policy", "Editorial Policy"],
                 ["/source-policy", "Source Policy"],

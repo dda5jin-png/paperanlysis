@@ -1,7 +1,24 @@
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BarChart3, Calendar, Cpu, ExternalLink } from "lucide-react";
+import {
+  Trash2,
+  Calendar,
+  Cpu,
+  Download,
+  FileText,
+  Quote,
+  Star,
+} from "lucide-react";
 import type { PaperAnalysis } from "@/types/paper";
 import { cn } from "@/lib/utils";
+import {
+  buildCitationText,
+  buildMarkdownText,
+  copyTextToClipboard,
+  downloadPaperReportAsPdf,
+  getPaperWorkspaceMeta,
+  savePaperWorkspaceMeta,
+} from "@/lib/paper-workspace";
 
 interface PaperCardProps {
   paper: PaperAnalysis;
@@ -13,10 +30,56 @@ interface PaperCardProps {
 export default function PaperCard({ paper, selected, onToggle, onDelete }: PaperCardProps) {
   const router = useRouter();
   const isGemini = paper.modelId?.startsWith("gemini");
+  const [copyState, setCopyState] = useState<"idle" | "citation" | "markdown">("idle");
+  const [workspaceStarred, setWorkspaceStarred] = useState(false);
+  const [workspaceTags, setWorkspaceTags] = useState<string[]>([]);
+  const [workspaceNote, setWorkspaceNote] = useState("");
+  const citationText = useMemo(() => buildCitationText(paper), [paper]);
+  const markdownText = useMemo(() => buildMarkdownText(paper), [paper]);
+
+  useEffect(() => {
+    const meta = getPaperWorkspaceMeta(paper.id);
+    setWorkspaceStarred(meta.starred);
+    setWorkspaceTags(meta.tags);
+    setWorkspaceNote(meta.note);
+  }, [paper.id]);
 
   const handleTitleClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // 카드 전체의 선택(Toggle) 이벤트 방지
     router.push(`/library/${paper.id}`);
+  };
+
+  const handleCopy = async (e: React.MouseEvent, type: "citation" | "markdown") => {
+    e.stopPropagation();
+    try {
+      await copyTextToClipboard(type === "citation" ? citationText : markdownText);
+      setCopyState(type);
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    } catch {
+      alert("복사에 실패했습니다.");
+    }
+  };
+
+  const handleDownloadPdf = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      downloadPaperReportAsPdf(paper);
+    } catch {
+      alert("PDF 저장 창을 열지 못했습니다.");
+    }
+  };
+
+  const toggleStar = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = !workspaceStarred;
+    setWorkspaceStarred(next);
+    const current = getPaperWorkspaceMeta(paper.id);
+    savePaperWorkspaceMeta(paper.id, {
+      ...current,
+      starred: next,
+    });
+    setWorkspaceTags(current.tags);
+    setWorkspaceNote(current.note);
   };
 
   return (
@@ -42,12 +105,24 @@ export default function PaperCard({ paper, selected, onToggle, onDelete }: Paper
       </div>
 
       {/* 논문 제목 */}
-      <h3 
-        onClick={handleTitleClick}
-        className="text-sm font-bold text-slate-800 pr-8 leading-snug mb-2 hover:text-blue-600 hover:underline decoration-blue-200 underline-offset-4 transition-colors"
-      >
-        {paper.title}
-      </h3>
+      <div className="mb-2 flex items-start gap-2 pr-8">
+        <h3 
+          onClick={handleTitleClick}
+          className="flex-1 text-sm font-bold text-slate-800 leading-snug hover:text-blue-600 hover:underline decoration-blue-200 underline-offset-4 transition-colors"
+        >
+          {paper.title}
+        </h3>
+        <button
+          onClick={toggleStar}
+          className={cn(
+            "rounded-lg p-1.5 transition-colors",
+            workspaceStarred ? "bg-amber-50 text-amber-500" : "text-slate-300 hover:bg-slate-100 hover:text-amber-500",
+          )}
+          title="즐겨찾기"
+        >
+          <Star className={cn("h-4 w-4", workspaceStarred && "fill-current")} />
+        </button>
+      </div>
 
       {/* 메타 정보 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mb-3">
@@ -100,6 +175,46 @@ export default function PaperCard({ paper, selected, onToggle, onDelete }: Paper
           {paper.conclusion.keyFindings[0]}
         </p>
       )}
+
+      {workspaceNote && (
+        <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 line-clamp-2">
+          {workspaceNote}
+        </p>
+      )}
+
+      {workspaceTags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1">
+          {workspaceTags.slice(0, 3).map((tag) => (
+            <span key={tag} className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+        <button
+          onClick={(e) => handleCopy(e, "citation")}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 transition-colors hover:bg-slate-200"
+        >
+          <Quote className="h-3.5 w-3.5" />
+          {copyState === "citation" ? "복사됨" : "인용"}
+        </button>
+        <button
+          onClick={(e) => handleCopy(e, "markdown")}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 transition-colors hover:bg-slate-200"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          {copyState === "markdown" ? "복사됨" : "MD"}
+        </button>
+        <button
+          onClick={handleDownloadPdf}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 transition-colors hover:bg-slate-200"
+        >
+          <Download className="h-3.5 w-3.5" />
+          PDF
+        </button>
+      </div>
 
       {/* 삭제 버튼 */}
       <button

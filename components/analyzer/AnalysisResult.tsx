@@ -6,17 +6,22 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   ListTree,
-  Tag,
   ChevronDown,
   ChevronUp,
   Download,
   Save,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PaperAnalysis, VariableItem, HypothesisItem, StructuredSection } from "@/types/paper";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import {
+  buildCitationText,
+  buildMarkdownText,
+  copyTextToClipboard,
+  downloadPaperReportAsPdf,
+} from "@/lib/paper-workspace";
 
 interface AnalysisResultProps {
   data: PaperAnalysis;
@@ -84,6 +89,8 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "citation" | "markdown">("idle");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // v4.0 필드 우선, 하위 호환 필드 폴백
   const summary = data.summary || data.introduction?.oneLineSummary || "";
@@ -100,6 +107,8 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
     (data.conclusion?.limitations ? [data.conclusion.limitations] : []);
   const structuredSummary = data.structuredSummary ?? [];
   const keywords = data.domainKeywords ?? [];
+  const citationText = useMemo(() => buildCitationText(data), [data]);
+  const markdownText = useMemo(() => buildMarkdownText(data), [data]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -127,6 +136,29 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
     }
   };
 
+  const copyToClipboard = async (value: string, type: "citation" | "markdown") => {
+    try {
+      await copyTextToClipboard(value);
+      setCopyState(type);
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    } catch (_error) {
+      setCopyState("idle");
+      alert("복사에 실패했습니다. 브라우저 권한을 확인해 주세요.");
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+
+    try {
+      downloadPaperReportAsPdf(data);
+    } catch (_error) {
+      alert("PDF 저장 창을 열지 못했습니다. 팝업 차단 여부를 확인해 주세요.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
 
@@ -146,6 +178,26 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
             )}
           </div>
           <div className="flex gap-2 shrink-0">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {downloadingPdf ? "PDF 준비 중…" : "PDF 저장"}
+            </button>
+            <button
+              onClick={() => copyToClipboard(citationText, "citation")}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all"
+            >
+              {copyState === "citation" ? "✓ 인용 복사됨" : "인용 복사"}
+            </button>
+            <button
+              onClick={() => copyToClipboard(markdownText, "markdown")}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all"
+            >
+              {copyState === "markdown" ? "✓ Markdown 복사됨" : "Markdown 복사"}
+            </button>
             {!saved ? (
               <button
                 onClick={handleSave}

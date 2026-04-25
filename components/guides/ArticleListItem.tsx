@@ -5,7 +5,7 @@ export function ArticleListItem({ article }: { article: GuideArticle }) {
   const category = getCategory(article.category);
   return (
     <Link
-      href={`/guides/${article.slug}`}
+      href={`/guide/${article.slug}`}
       className="block py-6 hover:bg-ink-50/60 -mx-5 px-5 sm:-mx-6 sm:px-6 transition"
     >
       <div className="text-xs font-semibold text-brand-700">{category?.name}</div>

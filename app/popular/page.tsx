@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function PopularPage() {
-  redirect("/guides");
+  redirect("/blog");
 }

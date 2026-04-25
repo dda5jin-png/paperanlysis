@@ -3,7 +3,16 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
-import { RotateCcw, Info, Sparkles, LogIn } from "lucide-react";
+import {
+  RotateCcw,
+  Info,
+  Sparkles,
+  LogIn,
+  Download,
+  Quote,
+  FileText,
+  BookMarked,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import PdfUploader from "@/components/ui/PdfUploader";
@@ -212,6 +221,48 @@ export default function AnalyzerPage() {
                   disabled={!session && guestUsed}
                 />
               </div>
+
+              {state.status === "idle" && (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    {
+                      icon: <Sparkles className="h-5 w-5" />,
+                      title: "자동 구조 분석",
+                      description:
+                        "핵심 요약, 연구 가설, 변수 구조, 연구의 한계를 한 화면에서 바로 정리합니다.",
+                    },
+                    {
+                      icon: <Download className="h-5 w-5" />,
+                      title: "PDF 리포트 저장",
+                      description:
+                        "분석 결과를 출력용 리포트로 저장해서 지도교수 미팅이나 개인 정리에 바로 활용할 수 있습니다.",
+                    },
+                    {
+                      icon: <Quote className="h-5 w-5" />,
+                      title: "인용 · Markdown 복사",
+                      description:
+                        "참고용 인용 문장과 구조화된 Markdown을 복사해 워드, 노션, 옵시디언 초안에 붙여 넣을 수 있습니다.",
+                    },
+                    {
+                      icon: <BookMarked className="h-5 w-5" />,
+                      title: "서고 누적 관리",
+                      description:
+                        "회원가입 후에는 분석 결과를 서고에 저장하고, 메모·태그·즐겨찾기·비교 분석으로 이어갈 수 있습니다.",
+                    },
+                  ].map((feature) => (
+                    <div
+                      key={feature.title}
+                      className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-100/70"
+                    >
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                        {feature.icon}
+                      </div>
+                      <h3 className="mt-4 text-base font-black text-slate-900">{feature.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* 에러 표시 */}
               {state.status === "error" && (

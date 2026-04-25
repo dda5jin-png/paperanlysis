@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function LatestPage() {
-  redirect("/guides");
+  redirect("/blog");
 }

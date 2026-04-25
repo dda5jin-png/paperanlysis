@@ -29,7 +29,18 @@ export async function GET(
       return NextResponse.json({ error: "논문을 찾을 수 없습니다." }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, paper: data });
+    const { data: analysis } = await supabase
+      .from("analyses")
+      .select("result_json")
+      .eq("paper_id", id)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const merged = analysis?.result_json ? { ...analysis.result_json, ...data } : data;
+
+    return NextResponse.json({ success: true, paper: merged });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

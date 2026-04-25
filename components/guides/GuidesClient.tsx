@@ -5,13 +5,13 @@ import { GUIDE_CATEGORIES } from "@/lib/guide-data";
 
 const stageLinks: Record<string, { href: string; label: string }[]> = {
   "주제 설정": [
-    { href: "/archive/부동산-석사-논문이-정체가-모호하다는-평가를-받는-이유", label: "논문 정체성이 모호해지는 이유" },
-    { href: "/archive/같은-부동산-주제라도-논문이-완전히-달라지는-이유", label: "같은 주제라도 논문이 달라지는 이유" },
+    { href: "/blog/부동산-석사-논문이-정체가-모호하다는-평가를-받는-이유", label: "논문 정체성이 모호해지는 이유" },
+    { href: "/blog/같은-부동산-주제라도-논문이-완전히-달라지는-이유", label: "같은 주제라도 논문이 달라지는 이유" },
   ],
   "논문 구조 작성": [
-    { href: "/archive/논문-쓰기-전에-심사규정-pdf부터-받아야-하는-이유", label: "심사규정 PDF부터 받아야 하는 이유" },
-    { href: "/archive/석사-논문은-최소-분량만-채우면-왜-위험할까", label: "최소 분량만 채우면 위험한 이유" },
-    { href: "/archive/조사보고서와-학위논문은-어디서-갈리는가", label: "조사보고서와 학위논문의 차이" },
+    { href: "/resources/논문-쓰기-전에-심사규정-pdf부터-받아야-하는-이유", label: "심사규정 PDF부터 받아야 하는 이유" },
+    { href: "/resources/석사-논문은-최소-분량만-채우면-왜-위험할까", label: "최소 분량만 채우면 위험한 이유" },
+    { href: "/resources/조사보고서와-학위논문은-어디서-갈리는가", label: "조사보고서와 학위논문의 차이" },
   ],
 };
 
@@ -26,16 +26,22 @@ export function GuidesClient() {
           </h1>
           <p className="mt-4 max-w-3xl leading-7 text-ink-700">
             이 페이지는 논문을 준비할 때 어떤 단계들이 있는지 한 번에 보여주는 전체 지도입니다.
-            실제로 읽고 해결하는 콘텐츠는 <strong>논문 아티클</strong>에 쌓고, 이곳에서는 지금 내 위치와 다음 단계만
+            실제로 읽고 해결하는 콘텐츠는 <strong>논문 블로그</strong>와 <strong>자료실</strong>에 쌓고, 이곳에서는 지금 내 위치와 다음 단계만
             빠르게 확인하도록 구성했습니다.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              href="/archive"
+              href="/blog"
               className="inline-flex items-center rounded-xl bg-brand-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-800"
             >
-              논문 아티클 보러가기
+              논문 블로그 보러가기
+            </Link>
+            <Link
+              href="/resources"
+              className="inline-flex items-center rounded-xl border border-ink-200 bg-white px-5 py-3 text-sm font-bold text-ink-800 hover:border-ink-300"
+            >
+              자료실 보기
             </Link>
             <Link
               href="/analyzer"
