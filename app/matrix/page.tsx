@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart3, Brain, ArrowLeft, Loader2,
   ChevronRight, Lightbulb, FlaskConical,
-  BookOpen, AlertTriangle, Sparkles,
+  BookOpen, AlertTriangle, Sparkles, Download, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_MODEL_ID, MODELS } from "@/lib/models";
@@ -57,6 +57,102 @@ function MatrixRow({ label, values, className }: {
   );
 }
 
+function normalizeList(value?: string | string[] | null) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value
+    .split(/\n|(?<=[.?!])\s+/)
+    .map((item) => item.replace(/^[-•·\d.)\s]+/, "").trim())
+    .filter((item) => item.length > 0)
+    .slice(0, 5);
+}
+
+function getKeyFieldCoverage(papers: PaperAnalysis[]) {
+  const rows = [
+    { key: "purpose", label: "연구목적", count: papers.filter((paper) => Boolean(paper.researchPurpose)).length },
+    { key: "hypotheses", label: "가설", count: papers.filter((paper) => (paper.hypotheses?.length ?? 0) > 0).length },
+    { key: "methodology", label: "연구방법", count: papers.filter((paper) => Boolean(paper.methodology?.researchType || paper.methodology?.dataSource || paper.methodology?.analysisMethod?.length)).length },
+    { key: "variables", label: "변수", count: papers.filter((paper) => (paper.methodology?.variables?.length ?? 0) > 0).length },
+    { key: "conclusion", label: "연구결론", count: papers.filter((paper) => (paper.conclusion?.keyFindings?.length ?? 0) > 0 || Boolean(paper.summary)).length },
+    { key: "limitations", label: "연구한계", count: papers.filter((paper) => (paper.limitations?.length ?? 0) > 0 || Boolean(paper.conclusion?.limitations)).length },
+  ];
+
+  return rows.map((row) => ({
+    ...row,
+    ratio: `${row.count}/${papers.length}`,
+  }));
+}
+
+function buildMatrixMarkdown(papers: PaperAnalysis[]) {
+  const lines: string[] = [];
+  lines.push("# 논문 비교 매트릭스");
+  lines.push("");
+
+  papers.forEach((paper, index) => {
+    lines.push(`## 논문 ${index + 1}`);
+    lines.push(`- 제목: ${paper.title}`);
+    lines.push(`- 저자: ${paper.authors?.join(", ") || "저자 미상"}`);
+    lines.push(`- 연도: ${paper.year || "연도 미상"}`);
+    lines.push(`- 연구목적: ${paper.researchPurpose || "—"}`);
+    lines.push(`- 연구가설: ${normalizeList(paper.hypotheses?.map((item) => `${item.id}: ${item.content}`) ?? []).join(" / ") || "—"}`);
+    lines.push(`- 연구유형: ${paper.methodology?.researchType || "—"}`);
+    lines.push(`- 데이터/대상: ${paper.methodology?.dataSource || "—"}`);
+    lines.push(`- 분석방법: ${(paper.methodology?.analysisMethod ?? []).join(", ") || "—"}`);
+    lines.push(`- 변수: ${(paper.methodology?.variables ?? []).map((item) => `[${item.type}] ${item.name}`).join(", ") || "—"}`);
+    lines.push(`- 핵심결과: ${normalizeList(paper.conclusion?.keyFindings).join(" / ") || "—"}`);
+    lines.push(`- 연구한계: ${normalizeList(paper.limitations ?? paper.conclusion?.limitations).join(" / ") || "—"}`);
+    lines.push("");
+  });
+
+  return lines.join("\n");
+}
+
+function buildMatrixCsv(papers: PaperAnalysis[]) {
+  const header = [
+    "제목",
+    "저자",
+    "연도",
+    "연구목적",
+    "연구가설",
+    "연구유형",
+    "데이터/대상",
+    "분석방법",
+    "변수",
+    "핵심결과",
+    "연구한계",
+  ];
+
+  const rows = papers.map((paper) => [
+    paper.title || "",
+    paper.authors?.join(", ") || "",
+    paper.year || "",
+    paper.researchPurpose || "",
+    (paper.hypotheses ?? []).map((item) => `${item.id}: ${item.content}`).join(" / "),
+    paper.methodology?.researchType || "",
+    paper.methodology?.dataSource || "",
+    (paper.methodology?.analysisMethod ?? []).join(", "),
+    (paper.methodology?.variables ?? []).map((item) => `[${item.type}] ${item.name}`).join(", "),
+    normalizeList(paper.conclusion?.keyFindings).join(" / ") || paper.summary || "",
+    normalizeList(paper.limitations ?? paper.conclusion?.limitations).join(" / "),
+  ]);
+
+  return [header, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+}
+
+function downloadFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 function MatrixPageInner() {
   const router     = useRouter();
   const params     = useSearchParams();
@@ -69,6 +165,7 @@ function MatrixPageInner() {
   const [gapLoading, setGapLoading] = useState(false);
   const [gapError, setGapError]   = useState<string | null>(null);
   const [modelId, setModelId]     = useState(DEFAULT_MODEL_ID);
+  const coverage = getKeyFieldCoverage(papers);
 
   // ── 선택된 논문 로드 ──────────────────────────────────────
   useEffect(() => {
@@ -163,33 +260,95 @@ function MatrixPageInner() {
 
       {/* ── 탭 1: 매트릭스 ──────────────────────────────── */}
       {activeTab === "matrix" && (
-        <div className="card overflow-x-auto p-0">
-          <table className="w-full text-sm min-w-[700px]">
-            <thead>
-              <tr className="border-b-2 border-slate-200">
-                <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide bg-slate-50 w-32">
-                  항목
-                </th>
-                {papers.map((p, i) => (
-                  <th key={i} className="px-4 py-3 text-left">
-                    <span className="text-xs text-blue-500 font-bold block mb-0.5">논문 {i + 1}</span>
-                    <span className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug">{p.title}</span>
-                    <span className="text-xs text-slate-400 mt-0.5 block">{p.authors?.[0]} {p.year && `(${p.year})`}</span>
-                  </th>
+        <div className="space-y-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-bold text-slate-700">비교 준비 상태</h3>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {coverage.map((item) => (
+                  <div key={item.key} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wider text-slate-500">{item.label}</p>
+                    <p className="mt-2 text-lg font-black text-slate-900">{item.ratio}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">선택된 논문 중 채워진 편수</p>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              <MatrixRow label="연구 유형"   values={papers.map((p) => p.methodology?.researchType)} />
-              <MatrixRow label="분석 기법"   values={papers.map((p) => p.methodology?.analysisMethod)} className="bg-purple-50/30" />
-              <MatrixRow label="주요 변수"   values={papers.map((p) => p.methodology?.variables?.map((v) => `[${v.type === "dependent" ? "종속" : v.type === "independent" ? "독립" : "통제"}] ${v.name}`))} />
-              <MatrixRow label="데이터 출처" values={papers.map((p) => p.methodology?.dataSource)} className="bg-slate-50/50" />
-              <MatrixRow label="연구 질문"   values={papers.map((p) => p.introduction?.researchQuestion)} />
-              <MatrixRow label="핵심 결과"   values={papers.map((p) => p.conclusion?.keyFindings)} className="bg-blue-50/20" />
-              <MatrixRow label="연구 한계"   values={papers.map((p) => p.conclusion?.limitations)} />
-              <MatrixRow label="후속 연구"   values={papers.map((p) => p.conclusion?.futureResearch)} className="bg-amber-50/20" />
-            </tbody>
-          </table>
+              </div>
+            </div>
+
+            <div className="card flex flex-col justify-center gap-3">
+              <button
+                onClick={() => downloadFile("paper-matrix.md", buildMatrixMarkdown(papers), "text/markdown;charset=utf-8")}
+                className="btn-secondary text-sm py-2"
+              >
+                <FileText className="w-4 h-4" /> Markdown 내보내기
+              </button>
+              <button
+                onClick={() => downloadFile("paper-matrix.csv", buildMatrixCsv(papers), "text/csv;charset=utf-8")}
+                className="btn-secondary text-sm py-2"
+              >
+                <Download className="w-4 h-4" /> CSV 내보내기
+              </button>
+            </div>
+          </div>
+
+          <div className="card overflow-x-auto p-0">
+            <table className="w-full text-sm min-w-[920px]">
+              <thead>
+                <tr className="border-b-2 border-slate-200">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide bg-slate-50 w-36">
+                    항목
+                  </th>
+                  {papers.map((p, i) => (
+                    <th key={i} className="px-4 py-3 text-left min-w-[240px]">
+                      <span className="text-xs text-blue-500 font-bold block mb-0.5">논문 {i + 1}</span>
+                      <span className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug">{p.title}</span>
+                      <span className="text-xs text-slate-400 mt-0.5 block">{p.authors?.[0]} {p.year && `(${p.year})`}</span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <MatrixRow label="연구목적" values={papers.map((p) => p.researchPurpose || p.introduction?.problemStatement)} className="bg-blue-50/20" />
+                <MatrixRow label="연구가설" values={papers.map((p) => p.hypotheses?.map((item) => `${item.id}: ${item.content}`))} />
+                <MatrixRow label="연구유형" values={papers.map((p) => p.methodology?.researchType)} className="bg-slate-50/50" />
+                <MatrixRow label="데이터/대상" values={papers.map((p) => p.methodology?.dataSource)} />
+                <MatrixRow label="분석기법" values={papers.map((p) => p.methodology?.analysisMethod)} className="bg-purple-50/30" />
+                <MatrixRow
+                  label="독립변수"
+                  values={papers.map((p) =>
+                    (p.methodology?.variables ?? [])
+                      .filter((item) => item.type === "independent")
+                      .map((item) => item.name),
+                  )}
+                />
+                <MatrixRow
+                  label="종속변수"
+                  values={papers.map((p) =>
+                    (p.methodology?.variables ?? [])
+                      .filter((item) => item.type === "dependent")
+                      .map((item) => item.name),
+                  )}
+                  className="bg-emerald-50/20"
+                />
+                <MatrixRow
+                  label="기타변수"
+                  values={papers.map((p) =>
+                    (p.methodology?.variables ?? [])
+                      .filter((item) => !["independent", "dependent"].includes(item.type))
+                      .map((item) => `[${item.type}] ${item.name}`),
+                  )}
+                />
+                <MatrixRow label="연구질문" values={papers.map((p) => p.introduction?.researchQuestion)} className="bg-slate-50/50" />
+                <MatrixRow label="핵심결과" values={papers.map((p) => p.conclusion?.keyFindings || normalizeList(p.summary))} className="bg-blue-50/20" />
+                <MatrixRow label="시사점" values={papers.map((p) => p.conclusion?.implications)} />
+                <MatrixRow label="연구한계" values={papers.map((p) => p.limitations || normalizeList(p.conclusion?.limitations))} className="bg-amber-50/20" />
+                <MatrixRow label="후속연구" values={papers.map((p) => normalizeList(p.conclusion?.futureResearch))} />
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
