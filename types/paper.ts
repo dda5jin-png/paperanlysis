@@ -24,6 +24,13 @@ export interface DomainKeyword {
   frequency?: number;
 }
 
+export interface ExtractionDiagnostics {
+  charCount: number;
+  readableRatio: number;
+  ocrSuggested: boolean;
+  warning?: string;
+}
+
 export interface Introduction {
   problemStatement?: string;
   oneLineSummary?: string;
@@ -44,6 +51,7 @@ export interface PaperAnalysis {
   modelId: string;
   modelName: string;
   createdAt: string;
+  extractionDiagnostics?: ExtractionDiagnostics;
 
   // v4.0 핵심 필드 (원문 기반)
   researchPurpose?: string;                // 연구 목적

@@ -115,6 +115,7 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
   const dependentVariables = variables.filter((item) => item.type === "dependent");
   const independentVariables = variables.filter((item) => item.type === "independent");
   const otherVariables = variables.filter((item) => !["dependent", "independent"].includes(item.type));
+  const extractionDiagnostics = data.extractionDiagnostics;
   const citationText = useMemo(() => buildCitationText(data), [data]);
   const markdownText = useMemo(() => buildMarkdownText(data), [data]);
 
@@ -239,6 +240,17 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
           </div>
         )}
       </div>
+
+      {extractionDiagnostics?.ocrSuggested && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <p className="text-sm font-black text-amber-900">텍스트 추출 품질이 낮습니다</p>
+          <p className="mt-1 text-sm leading-relaxed text-amber-800">
+            {extractionDiagnostics.warning} 현재 추출된 글자 수는 {extractionDiagnostics.charCount.toLocaleString()}자이고,
+            읽을 수 있는 문자 비율은 {Math.round(extractionDiagnostics.readableRatio * 100)}%입니다.
+            스캔본이거나 이미지형 PDF라면 OCR 경로를 추가해야 분석 품질이 좋아집니다.
+          </p>
+        </div>
+      )}
 
       {/* ── 1. 연구 목적 ─────────────────────────────────── */}
       {researchPurpose && (
