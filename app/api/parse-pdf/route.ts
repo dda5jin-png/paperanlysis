@@ -249,6 +249,16 @@ export async function POST(req: NextRequest) {
     ? buildPremiumAnalysisPrompt(rawText) 
     : buildFreeAnalysisPrompt(rawText);
   const extractionDiagnostics = assessExtractedTextQuality(rawText);
+  if (extractionDiagnostics.reportPdfDetected) {
+    await supabase.storage.from("papers").remove([storagePath]);
+    return NextResponse.json(
+      {
+        error: "이 파일은 원문 논문 PDF가 아니라 논문분석기에서 만든 분석 리포트 PDF로 보입니다. 원래 논문 PDF를 업로드해 주세요.",
+        errorCode: "REPORT_PDF_DETECTED",
+      },
+      { status: 422 },
+    );
+  }
 
   const modelConfig = getModelById(modelId) || getModelById(DEFAULT_MODEL_ID);
   let analysisJson: any;
@@ -296,7 +306,7 @@ export async function POST(req: NextRequest) {
     .from("analyses")
     .insert({
       user_id: profile.id,
-      paper_id: generateId(), // 실제 documents 연결 로직은 상위에서 처리
+      paper_id: crypto.randomUUID(),
       analysis_type: requestedType,
       input_hash: inputHash,
       prompt_version: PROMPT_VERSION,
@@ -386,6 +396,16 @@ async function handleGuestAnalysis(req: NextRequest, supabase: any) {
 
   const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
   const extractionDiagnostics = assessExtractedTextQuality(rawText);
+  if (extractionDiagnostics.reportPdfDetected) {
+    await adminClient.storage.from("papers").remove([storagePath]);
+    return NextResponse.json(
+      {
+        error: "이 파일은 원문 논문 PDF가 아니라 논문분석기에서 만든 분석 리포트 PDF로 보입니다. 원래 논문 PDF를 업로드해 주세요.",
+        errorCode: "REPORT_PDF_DETECTED",
+      },
+      { status: 422 },
+    );
+  }
   const enrichedJson = enrichAnalysisFromRawText(rawText, analysisJson, originalFilename);
 
   return NextResponse.json({

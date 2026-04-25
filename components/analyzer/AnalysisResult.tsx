@@ -245,7 +245,14 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
         )}
       </div>
 
-      {extractionDiagnostics?.ocrSuggested && (
+      {extractionDiagnostics?.reportPdfDetected ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4">
+          <p className="text-sm font-black text-rose-900">분석 리포트 PDF가 감지되었습니다</p>
+          <p className="mt-1 text-sm leading-relaxed text-rose-800">
+            이 파일은 원문 논문이 아니라 논문분석기에서 만든 결과 리포트로 보입니다. 이 경우 연구목적, 방법, 변수 같은 원문 구조 정보가 거의 남아 있지 않아서 분석 품질이 크게 떨어집니다. 원래 논문 PDF를 다시 업로드해 주세요.
+          </p>
+        </div>
+      ) : extractionDiagnostics?.ocrSuggested && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
           <p className="text-sm font-black text-amber-900">텍스트 추출 품질이 낮습니다</p>
           <p className="mt-1 text-sm leading-relaxed text-amber-800">

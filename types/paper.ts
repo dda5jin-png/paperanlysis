@@ -28,6 +28,7 @@ export interface ExtractionDiagnostics {
   charCount: number;
   readableRatio: number;
   ocrSuggested: boolean;
+  reportPdfDetected?: boolean;
   warning?: string;
 }
 

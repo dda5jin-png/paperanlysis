@@ -29,6 +29,17 @@ export async function POST(req: NextRequest) {
     const originalFileHash = typeof body.originalFileHash === "string" ? body.originalFileHash : "";
     const originalInputHash = typeof body.originalInputHash === "string" ? body.originalInputHash : "";
     const requestedType = body.type === "deep" ? "deep" : "summary";
+    const diagnostics = assessExtractedTextQuality(rawText);
+
+    if (diagnostics.reportPdfDetected) {
+      return NextResponse.json(
+        {
+          error: "OCR 결과가 원문 논문이 아니라 기존 분석 리포트 PDF로 보입니다. 원래 논문 PDF를 다시 업로드해 주세요.",
+          errorCode: "REPORT_PDF_DETECTED",
+        },
+        { status: 422 },
+      );
+    }
 
     if (rawText.length < 400) {
       return NextResponse.json(
@@ -72,7 +83,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
       modelId: modelConfig!.id,
       modelName: `${modelConfig!.name} · OCR`,
-      extractionDiagnostics: assessExtractedTextQuality(rawText),
+      extractionDiagnostics: diagnostics,
       ...enrichedJson,
     };
 

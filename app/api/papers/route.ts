@@ -66,8 +66,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const paper: PaperAnalysis = body.paper;
 
-    if (!paper?.id || !paper?.title) {
+    if (!paper?.title) {
       return NextResponse.json({ error: "유효하지 않은 데이터입니다." }, { status: 400 });
+    }
+
+    if (!paper.fileHash) {
+      return NextResponse.json({ error: "파일 해시가 없어 서고에 저장할 수 없습니다. 논문을 다시 분석해 주세요." }, { status: 400 });
     }
 
     // ── 2. 논문 기본 정보 저장 (파일 해시 기준 중복 확인) ───

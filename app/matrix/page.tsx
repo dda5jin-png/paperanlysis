@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart3, Brain, ArrowLeft, Loader2,
   ChevronRight, Lightbulb, FlaskConical,
-  BookOpen, AlertTriangle, Sparkles, Download, FileText,
+  BookOpen, AlertTriangle, Sparkles, Download, FileText, Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_MODEL_ID, MODELS } from "@/lib/models";
 import type { PaperAnalysis } from "@/types/paper";
+import { copyTextToClipboard } from "@/lib/paper-workspace";
 
 // ── Gap 분석 결과 타입 ────────────────────────────────────
 interface GapResult {
@@ -141,6 +142,69 @@ function buildMatrixCsv(papers: PaperAnalysis[]) {
     .join("\n");
 }
 
+function buildLiteratureReviewDraft(papers: PaperAnalysis[]) {
+  const intro = [
+    "## 선행연구 검토 초안",
+    "",
+    `이번 비교에서는 총 ${papers.length}편의 선행연구를 검토하였다. 공통적으로는 연구목적, 분석대상, 사용한 방법론, 핵심 결과와 한계를 중심으로 비교하여 내 연구가 어디에서 차별화될 수 있는지를 정리하는 데 초점을 두었다.`,
+    "",
+  ];
+
+  const body = papers.flatMap((paper, index) => {
+    const purpose = paper.researchPurpose || paper.introduction?.problemStatement || "연구목적 정보가 명확하지 않다.";
+    const methods = [
+      paper.methodology?.researchType,
+      paper.methodology?.dataSource,
+      (paper.methodology?.analysisMethod ?? []).join(", "),
+    ]
+      .filter(Boolean)
+      .join(" / ");
+    const findings = normalizeList(paper.conclusion?.keyFindings).slice(0, 2).join(" ");
+    const limitations = normalizeList(paper.limitations ?? paper.conclusion?.limitations).slice(0, 2).join(" ");
+    const variables = (paper.methodology?.variables ?? [])
+      .slice(0, 4)
+      .map((item) => `${item.type === "dependent" ? "종속" : item.type === "independent" ? "독립" : "기타"}변수 ${item.name}`)
+      .join(", ");
+
+    const paragraph = [
+      `${index + 1}번째로 검토한 ${paper.title}은(는) ${purpose}`,
+      methods ? `연구방법 측면에서는 ${methods}을(를) 사용하였다.` : "연구방법 정보는 제한적으로 확인된다.",
+      variables ? `주요 변수로는 ${variables}가 확인된다.` : "변수 정보는 제한적으로 확인된다.",
+      findings ? `핵심 결과는 ${findings}` : "핵심 결과는 추가 확인이 필요하다.",
+      limitations ? `다만 연구한계로는 ${limitations}` : "연구한계는 명시적으로 드러나지 않았다.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return [paragraph, ""];
+  });
+
+  const synthesis = [
+    "## 비교 메모",
+    "",
+    "위 선행연구들을 종합하면, 연구목적과 방법론은 일부 겹치더라도 데이터 범위, 변수 설계, 연구 맥락, 한계 진술 방식에서 차이가 나타난다. 따라서 내 논문에서는 단순히 동일한 방법을 반복하기보다, 비교표에서 빈칸이 많았던 항목과 기존 연구가 충분히 다루지 않은 변수·맥락을 중심으로 차별화 지점을 설정하는 것이 중요하다.",
+  ];
+
+  return [...intro, ...body, ...synthesis].join("\n");
+}
+
+function buildComparisonNotes(papers: PaperAnalysis[]) {
+  const lines: string[] = [];
+  lines.push("# 비교 메모");
+  lines.push("");
+
+  papers.forEach((paper, index) => {
+    lines.push(`## 논문 ${index + 1}: ${paper.title}`);
+    lines.push(`- 연구목적: ${paper.researchPurpose || "—"}`);
+    lines.push(`- 연구방법: ${[paper.methodology?.researchType, paper.methodology?.dataSource, (paper.methodology?.analysisMethod ?? []).join(", ")].filter(Boolean).join(" / ") || "—"}`);
+    lines.push(`- 핵심결과: ${normalizeList(paper.conclusion?.keyFindings).join(" / ") || "—"}`);
+    lines.push(`- 연구한계: ${normalizeList(paper.limitations ?? paper.conclusion?.limitations).join(" / ") || "—"}`);
+    lines.push("");
+  });
+
+  return lines.join("\n");
+}
+
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
   const url = window.URL.createObjectURL(blob);
@@ -165,7 +229,10 @@ function MatrixPageInner() {
   const [gapLoading, setGapLoading] = useState(false);
   const [gapError, setGapError]   = useState<string | null>(null);
   const [modelId, setModelId]     = useState(DEFAULT_MODEL_ID);
+  const [copyState, setCopyState] = useState<"idle" | "review" | "notes">("idle");
   const coverage = getKeyFieldCoverage(papers);
+  const literatureReviewDraft = buildLiteratureReviewDraft(papers);
+  const comparisonNotes = buildComparisonNotes(papers);
 
   // ── 선택된 논문 로드 ──────────────────────────────────────
   useEffect(() => {
@@ -199,6 +266,16 @@ function MatrixPageInner() {
       setGapError(e instanceof Error ? e.message : String(e));
     } finally {
       setGapLoading(false);
+    }
+  };
+
+  const handleCopy = async (type: "review" | "notes") => {
+    try {
+      await copyTextToClipboard(type === "review" ? literatureReviewDraft : comparisonNotes);
+      setCopyState(type);
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    } catch {
+      alert("복사에 실패했습니다.");
     }
   };
 
@@ -280,6 +357,18 @@ function MatrixPageInner() {
 
             <div className="card flex flex-col justify-center gap-3">
               <button
+                onClick={() => handleCopy("review")}
+                className="btn-secondary text-sm py-2"
+              >
+                <Copy className="w-4 h-4" /> {copyState === "review" ? "초안 복사됨" : "문헌리뷰 초안 복사"}
+              </button>
+              <button
+                onClick={() => handleCopy("notes")}
+                className="btn-secondary text-sm py-2"
+              >
+                <Copy className="w-4 h-4" /> {copyState === "notes" ? "메모 복사됨" : "비교 메모 복사"}
+              </button>
+              <button
                 onClick={() => downloadFile("paper-matrix.md", buildMatrixMarkdown(papers), "text/markdown;charset=utf-8")}
                 className="btn-secondary text-sm py-2"
               >
@@ -291,6 +380,44 @@ function MatrixPageInner() {
               >
                 <Download className="w-4 h-4" /> CSV 내보내기
               </button>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="card">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-700">문헌리뷰 초안</h3>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">비교한 논문을 바탕으로 바로 문단으로 옮길 수 있는 초안입니다.</p>
+                </div>
+                <button
+                  onClick={() => downloadFile("literature-review-draft.md", literatureReviewDraft, "text/markdown;charset=utf-8")}
+                  className="btn-secondary text-sm py-2"
+                >
+                  <FileText className="w-4 h-4" /> 초안 저장
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap rounded-2xl bg-slate-50 p-4 text-sm leading-7 text-slate-700">
+                {literatureReviewDraft}
+              </pre>
+            </div>
+
+            <div className="card">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-700">비교 메모</h3>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">지도교수 미팅이나 선행연구 표 정리 전에 핵심만 빠르게 보는 메모입니다.</p>
+                </div>
+                <button
+                  onClick={() => downloadFile("comparison-notes.md", comparisonNotes, "text/markdown;charset=utf-8")}
+                  className="btn-secondary text-sm py-2"
+                >
+                  <Download className="w-4 h-4" /> 메모 저장
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap rounded-2xl bg-slate-50 p-4 text-sm leading-7 text-slate-700">
+                {comparisonNotes}
+              </pre>
             </div>
           </div>
 
