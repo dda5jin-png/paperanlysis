@@ -52,6 +52,22 @@ export function savePaperWorkspaceMeta(paperId: string, meta: PaperWorkspaceMeta
   window.localStorage.setItem(`paper-workspace:${paperId}`, JSON.stringify(meta));
 }
 
+export function getAllPaperWorkspaceMeta() {
+  if (typeof window === "undefined") return new Map<string, PaperWorkspaceMeta>();
+
+  const entries = new Map<string, PaperWorkspaceMeta>();
+
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key?.startsWith("paper-workspace:")) continue;
+
+    const paperId = key.replace("paper-workspace:", "");
+    entries.set(paperId, getPaperWorkspaceMeta(paperId));
+  }
+
+  return entries;
+}
+
 export function parseWorkspaceTags(input: string) {
   return input
     .split(",")

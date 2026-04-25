@@ -2,15 +2,18 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookMarked, BarChart3, Loader2,
-  FileSearch, Plus, Brain, Lock,
+  FileSearch, Plus, Brain, Lock, Search, Star,
 } from "lucide-react";
 import PaperCard from "@/components/library/PaperCard";
 import type { PaperAnalysis } from "@/types/paper";
 import { supabase } from "@/lib/supabase";
+import { getAllPaperWorkspaceMeta, type PaperWorkspaceMeta } from "@/lib/paper-workspace";
+
+type SortMode = "recent" | "year" | "title";
 
 export default function LibraryPage() {
   const router = useRouter();
@@ -19,6 +22,11 @@ export default function LibraryPage() {
   const [papers, setPapers]     = useState<PaperAnalysis[]>([]);
   const [loading, setLoading]   = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [workspaceMeta, setWorkspaceMeta] = useState<Map<string, PaperWorkspaceMeta>>(new Map());
+  const [query, setQuery] = useState("");
+  const [starOnly, setStarOnly] = useState(false);
+  const [activeTag, setActiveTag] = useState("전체");
+  const [sortMode, setSortMode] = useState<SortMode>("recent");
 
   // ── 인증 상태 체크 ────────────────────────────────────────
   useEffect(() => {
@@ -46,10 +54,25 @@ export default function LibraryPage() {
       const res  = await fetch("/api/papers", { credentials: "include" });
       const json = await res.json();
       setPapers(json.papers ?? []);
+      setWorkspaceMeta(getAllPaperWorkspaceMeta());
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!session) return;
+
+    const syncWorkspaceMeta = () => setWorkspaceMeta(getAllPaperWorkspaceMeta());
+    syncWorkspaceMeta();
+    window.addEventListener("storage", syncWorkspaceMeta);
+    window.addEventListener("focus", syncWorkspaceMeta);
+
+    return () => {
+      window.removeEventListener("storage", syncWorkspaceMeta);
+      window.removeEventListener("focus", syncWorkspaceMeta);
+    };
+  }, [session, papers.length]);
 
   // ── 선택 토글 ────────────────────────────────────────────
   const toggleSelect = (id: string) => {
@@ -60,7 +83,7 @@ export default function LibraryPage() {
     });
   };
 
-  const selectAll   = () => setSelected(new Set(papers.map((p) => p.id)));
+  const selectAll   = () => setSelected(new Set(filteredPapers.map((p) => p.id)));
   const clearSelect = () => setSelected(new Set());
 
   // ── 삭제 ─────────────────────────────────────────────────
@@ -84,6 +107,60 @@ export default function LibraryPage() {
     const ids = Array.from(selected).join(",");
     router.push(`/matrix?ids=${ids}&tab=gap`);
   };
+
+  const availableTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const paper of papers) {
+      const meta = workspaceMeta.get(paper.id);
+      for (const tag of meta?.tags ?? []) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+      .map(([tag]) => tag)
+      .slice(0, 12);
+  }, [papers, workspaceMeta]);
+
+  const filteredPapers = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const matched = papers.filter((paper) => {
+      const meta = workspaceMeta.get(paper.id);
+      const matchesStar = !starOnly || Boolean(meta?.starred);
+      const matchesTag = activeTag === "전체" || Boolean(meta?.tags?.includes(activeTag));
+
+      const haystack = [
+        paper.title,
+        paper.filename,
+        paper.authors?.join(" "),
+        paper.methodology?.researchType,
+        paper.methodology?.dataSource,
+        paper.conclusion?.keyFindings?.join(" "),
+        meta?.note,
+        meta?.tags?.join(" "),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
+
+      return matchesStar && matchesTag && matchesQuery;
+    });
+
+    return [...matched].sort((a, b) => {
+      if (sortMode === "title") {
+        return (a.title || a.filename).localeCompare(b.title || b.filename, "ko");
+      }
+
+      if (sortMode === "year") {
+        return Number(b.year || 0) - Number(a.year || 0);
+      }
+
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+  }, [papers, workspaceMeta, query, starOnly, activeTag, sortMode]);
 
   // 로딩 중
   if (isAuthLoading) {
@@ -151,7 +228,7 @@ export default function LibraryPage() {
             {selected.size > 0 ? `${selected.size}편 선택됨` : "비교할 논문을 선택하세요"}
           </span>
           <div className="flex items-center gap-2 ml-auto">
-            {selected.size < papers.length
+            {selected.size < filteredPapers.length
               ? <button onClick={selectAll}   className="text-xs text-blue-600 hover:underline font-bold">전체 선택</button>
               : <button onClick={clearSelect} className="text-xs text-slate-500 hover:underline font-bold">선택 해제</button>
             }
@@ -176,6 +253,71 @@ export default function LibraryPage() {
         </div>
       )}
 
+      {papers.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="제목, 저자, 태그, 메모로 검색"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-11 py-3 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setStarOnly((prev) => !prev)}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition-colors ${
+                  starOnly ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <Star className={`h-4 w-4 ${starOnly ? "fill-current" : ""}`} />
+                즐겨찾기만
+              </button>
+
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as SortMode)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none transition-colors focus:border-blue-500"
+              >
+                <option value="recent">최근 저장순</option>
+                <option value="year">연도순</option>
+                <option value="title">제목순</option>
+              </select>
+            </div>
+          </div>
+
+          {availableTags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["전체", ...availableTags].map((tag) => {
+                const active = activeTag === tag;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setActiveTag(tag)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-black transition-colors ${
+                      active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                    }`}
+                  >
+                    {tag === "전체" ? tag : `#${tag}`}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
+            <span>전체 {papers.length}편</span>
+            <span className="text-slate-300">·</span>
+            <span>현재 보기 {filteredPapers.length}편</span>
+            <span className="text-slate-300">·</span>
+            <span>즐겨찾기 {papers.filter((paper) => workspaceMeta.get(paper.id)?.starred).length}편</span>
+          </div>
+        </div>
+      )}
+
       {/* 콘텐츠 */}
       {loading ? (
         <div className="flex items-center justify-center py-20 text-slate-400">
@@ -194,9 +336,30 @@ export default function LibraryPage() {
             <Plus className="w-4 h-4" /> 첫 논문 분석하기
           </button>
         </div>
+      ) : filteredPapers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-20 text-center">
+          <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
+            <Search className="w-7 h-7 text-slate-400" />
+          </div>
+          <h3 className="text-base font-semibold text-slate-700 mb-1">조건에 맞는 논문이 없습니다</h3>
+          <p className="text-sm text-slate-500 mb-5 font-medium">
+            검색어나 태그, 즐겨찾기 필터를 조금 더 넓혀보세요.
+          </p>
+          <button
+            onClick={() => {
+              setQuery("");
+              setStarOnly(false);
+              setActiveTag("전체");
+              setSortMode("recent");
+            }}
+            className="btn-secondary"
+          >
+            필터 초기화
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {papers.map((paper) => (
+          {filteredPapers.map((paper) => (
             <PaperCard
               key={paper.id}
               paper={paper}
