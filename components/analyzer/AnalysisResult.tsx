@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   ListTree,
+  Layers3,
   ChevronDown,
   ChevronUp,
   Download,
@@ -88,6 +89,46 @@ const VAR_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   other:       { label: "기타",     color: "bg-slate-50 text-slate-500 border-slate-200" },
 };
 
+function inferPaperMode(data: PaperAnalysis, variables: VariableItem[]) {
+  const researchType = data.methodology?.researchType || "";
+  const keywordText = [
+    data.summary,
+    data.researchPurpose,
+    data.methodology?.dataSource,
+    ...((data.domainKeywords ?? []).map((item) => item.term)),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if ((data.hypotheses?.length ?? 0) > 0 || variables.length > 0 || /회귀|구조방정식|패널|시계열|실증|설문/.test(researchType)) {
+    return {
+      id: "quant",
+      label: "정량 연구",
+      tone: "가설, 변수, 분석방법이 중요한 논문입니다.",
+      badge: "bg-blue-50 text-blue-700 border-blue-200",
+      focus: ["연구 목적", "연구 가설", "연구 방법", "종속변수 · 독립변수", "연구 결론", "연구의 한계"],
+    } as const;
+  }
+
+  if (/제도|정책|법제/.test(researchType) || /법제|정책|제도개선|제도 분석|정책 분석/.test(keywordText)) {
+    return {
+      id: "policy",
+      label: "제도·정책 분석",
+      tone: "가설보다 제도 배경, 분석 대상, 개선 방향과 시사점이 중요한 논문입니다.",
+      badge: "bg-violet-50 text-violet-700 border-violet-200",
+      focus: ["연구 목적", "연구 방법", "논문 구조 요약", "연구 결론", "연구의 한계"],
+    } as const;
+  }
+
+  return {
+    id: "qual",
+    label: "문헌·질적 연구",
+    tone: "가설이나 변수보다 연구 구조, 자료, 결론 흐름이 중요한 논문입니다.",
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    focus: ["연구 목적", "연구 방법", "논문 구조 요약", "연구 결론", "연구의 한계"],
+  } as const;
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function AnalysisResult({ data, onSaved, ocrRetryAction }: AnalysisResultProps) {
   const router = useRouter();
@@ -122,6 +163,10 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
   const extractionDiagnostics = data.extractionDiagnostics;
   const citationText = useMemo(() => buildCitationText(data), [data]);
   const markdownText = useMemo(() => buildMarkdownText(data), [data]);
+  const paperMode = inferPaperMode(data, variables);
+  const shouldShowHypotheses = paperMode.id === "quant" || hypotheses.length > 0;
+  const shouldShowVariables = hasQuant && variables.length > 0;
+  const shouldShowStructuredSummary = !shouldShowVariables && structuredSummary.length > 0;
 
   const handleSave = async () => {
     setSaving(true);
@@ -233,6 +278,9 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
         {/* 키워드 */}
         {keywords.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/10">
+            <span className={cn("inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-black", paperMode.badge)}>
+              {paperMode.label}
+            </span>
             {keywords.slice(0, 6).map((kw, i) => (
               <span
                 key={i}
@@ -272,6 +320,32 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
         </div>
       )}
 
+      {!extractionDiagnostics?.reportPdfDetected && (
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white p-2 text-slate-600 shadow-sm">
+              <Layers3 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-black text-slate-900">{paperMode.label}</p>
+                <span className={cn("inline-flex items-center rounded-lg border px-2 py-0.5 text-[11px] font-black", paperMode.badge)}>
+                  이 논문에서 먼저 볼 항목
+                </span>
+              </div>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">{paperMode.tone}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {paperMode.focus.map((item) => (
+                  <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 1. 연구 목적 ─────────────────────────────────── */}
       {researchPurpose && (
         <Section icon={<BookOpen className="w-4 h-4" />} title="연구 목적">
@@ -280,31 +354,33 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
       )}
 
       {/* ── 2. 연구 가설 ─────────────────────────────────── */}
-      <Section
-        icon={<FlaskConical className="w-4 h-4" />}
-        title="연구 가설"
-        badge={hypotheses.length > 0 ? `${hypotheses.length}개` : undefined}
-      >
-        {hypotheses.length > 0 ? (
-          <div className="space-y-3">
-            {hypotheses.map((h, i) => (
-              <div
-                key={i}
-                className="flex gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl"
-              >
-                <span className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-blue-600 text-white text-xs font-black">
-                  {h.id}
-                </span>
-                <p className="text-sm text-slate-800 leading-relaxed pt-1">{h.content}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-400 italic">
-            논문에 명시된 가설이 없습니다.
-          </p>
-        )}
-      </Section>
+      {shouldShowHypotheses && (
+        <Section
+          icon={<FlaskConical className="w-4 h-4" />}
+          title="연구 가설"
+          badge={hypotheses.length > 0 ? `${hypotheses.length}개` : undefined}
+        >
+          {hypotheses.length > 0 ? (
+            <div className="space-y-3">
+              {hypotheses.map((h, i) => (
+                <div
+                  key={i}
+                  className="flex gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl"
+                >
+                  <span className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-blue-600 text-white text-xs font-black">
+                    {h.id}
+                  </span>
+                  <p className="text-sm text-slate-800 leading-relaxed pt-1">{h.content}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 italic">
+              정량 분석 논문으로 보이지만 논문에 명시된 가설은 찾지 못했습니다.
+            </p>
+          )}
+        </Section>
+      )}
 
       {/* ── 3. 연구 방법 ─────────────────────────────────── */}
       <Section
@@ -336,7 +412,7 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
       </Section>
 
       {/* ── 4. 변수 구조 / 논리 구조 ─────────────────────── */}
-      {hasQuant && variables.length > 0 ? (
+      {shouldShowVariables ? (
         <Section
           icon={<ArrowRightLeft className="w-4 h-4" />}
           title="종속변수 · 독립변수"
@@ -389,11 +465,11 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
             </table>
           </div>
         </Section>
-      ) : structuredSummary.length > 0 ? (
+      ) : shouldShowStructuredSummary ? (
         <Section
           icon={<ListTree className="w-4 h-4" />}
           title="논문 구조 요약"
-          badge="정성 연구"
+          badge={paperMode.label}
         >
           <div className="space-y-4">
             {structuredSummary.map((s, i) => (
