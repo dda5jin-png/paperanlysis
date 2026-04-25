@@ -116,21 +116,23 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/"); return; }
 
-      const { error } = await supabase.from("papers").insert({
-        user_id: user.id,
-        title: data.title,
-        authors: data.authors,
-        year: data.year,
-        filename: data.filename,
-        file_hash: data.fileHash,
-        analysis_json: data,
-        model_id: data.modelId,
+      const response = await fetch("/api/papers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ paper: data }),
       });
 
-      if (!error) {
-        setSaved(true);
-        onSaved?.();
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "서고 저장에 실패했습니다.");
       }
+
+      setSaved(true);
+      onSaved?.();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "서고 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -151,9 +153,9 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
     setDownloadingPdf(true);
 
     try {
-      downloadPaperReportAsPdf(data);
+      await downloadPaperReportAsPdf(data);
     } catch (_error) {
-      alert("PDF 저장 창을 열지 못했습니다. 팝업 차단 여부를 확인해 주세요.");
+      alert("PDF 저장을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setDownloadingPdf(false);
     }

@@ -166,19 +166,69 @@ export function downloadPaperReportAsPdf(data: PaperAnalysis) {
     citationText,
   });
 
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=980,height=720");
-  if (!printWindow) {
-    throw new Error("팝업 차단");
-  }
+  return printHtmlAsPdf(html);
+}
 
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
+function printHtmlAsPdf(html: string) {
+  return new Promise<void>((resolve, reject) => {
+    if (typeof document === "undefined") {
+      reject(new Error("브라우저 환경이 아닙니다."));
+      return;
+    }
 
-  printWindow.onload = () => {
-    printWindow.focus();
-    printWindow.print();
-  };
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.style.opacity = "0";
+
+    const cleanup = () => {
+      window.clearTimeout(fallbackTimer);
+      iframe.onload = null;
+      iframe.contentWindow?.removeEventListener("afterprint", handleAfterPrint);
+      if (iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+      }
+    };
+
+    const handleAfterPrint = () => {
+      cleanup();
+      resolve();
+    };
+
+    const fallbackTimer = window.setTimeout(() => {
+      cleanup();
+      resolve();
+    }, 4000);
+
+    iframe.onload = () => {
+      const frameWindow = iframe.contentWindow;
+      if (!frameWindow) {
+        cleanup();
+        reject(new Error("인쇄 프레임을 불러오지 못했습니다."));
+        return;
+      }
+
+      frameWindow.addEventListener("afterprint", handleAfterPrint, { once: true });
+
+      window.setTimeout(() => {
+        try {
+          frameWindow.focus();
+          frameWindow.print();
+        } catch (error) {
+          cleanup();
+          reject(error instanceof Error ? error : new Error("인쇄를 시작하지 못했습니다."));
+        }
+      }, 250);
+    };
+
+    document.body.appendChild(iframe);
+    iframe.srcdoc = html;
+  });
 }
 
 function escapeHtml(value: string) {

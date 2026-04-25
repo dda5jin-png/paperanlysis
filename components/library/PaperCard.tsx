@@ -60,12 +60,12 @@ export default function PaperCard({ paper, selected, onToggle, onDelete }: Paper
     }
   };
 
-  const handleDownloadPdf = (e: React.MouseEvent) => {
+  const handleDownloadPdf = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      downloadPaperReportAsPdf(paper);
+      await downloadPaperReportAsPdf(paper);
     } catch {
-      alert("PDF 저장 창을 열지 못했습니다.");
+      alert("PDF 저장을 시작하지 못했습니다.");
     }
   };
 
