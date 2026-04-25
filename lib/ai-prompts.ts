@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  논문 분석 프롬프트 (v5.1 - 실전 읽기 정보 우선)
+//  논문 분석 프롬프트 (v5.2 - 실전 읽기 정보 우선)
 // ─────────────────────────────────────────────────────────────
 
 /**
@@ -117,4 +117,4 @@ ${truncated}
 export const buildPremiumAnalysisPrompt = buildFreeAnalysisPrompt;
 
 /** 프롬프트 버전 정보 */
-export const PROMPT_VERSION = "5.1";
+export const PROMPT_VERSION = "5.2";

@@ -5,6 +5,7 @@ import pdfParse from "pdf-parse";
 import crypto from "crypto";
 import { buildFreeAnalysisPrompt, buildPremiumAnalysisPrompt, PROMPT_VERSION } from "@/lib/ai-prompts";
 import { assessExtractedTextQuality } from "@/lib/extraction-diagnostics";
+import { enrichAnalysisFromRawText } from "@/lib/paper-heuristics";
 import { generateId } from "@/lib/utils";
 import { getModelById, DEFAULT_MODEL_ID } from "@/lib/models";
 import { createClient } from "@/lib/supabase/server";
@@ -275,6 +276,8 @@ export async function POST(req: NextRequest) {
   }
 
   // 7. 결과 저장 및 반환
+  const enrichedJson = enrichAnalysisFromRawText(rawText, analysisJson, originalFilename);
+
   const finalResult: PaperAnalysis = {
     id: generateId(),
     filename: originalFilename,
@@ -285,7 +288,7 @@ export async function POST(req: NextRequest) {
     modelId: modelConfig!.id,
     modelName: modelConfig!.name,
     extractionDiagnostics,
-    ...analysisJson,
+    ...enrichedJson,
   };
 
   // DB에 분석 내역 영구 저장 (캐싱용)
@@ -383,6 +386,8 @@ async function handleGuestAnalysis(req: NextRequest, supabase: any) {
 
   const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
   const extractionDiagnostics = assessExtractedTextQuality(rawText);
+  const enrichedJson = enrichAnalysisFromRawText(rawText, analysisJson, originalFilename);
+
   return NextResponse.json({
     success: true,
     isGuest: true,
@@ -395,7 +400,7 @@ async function handleGuestAnalysis(req: NextRequest, supabase: any) {
       modelId: modelConfig!.id,
       modelName: modelConfig!.name,
       extractionDiagnostics,
-      ...analysisJson,
+      ...enrichedJson,
     }
   });
 }

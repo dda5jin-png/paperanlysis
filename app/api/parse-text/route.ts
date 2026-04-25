@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { buildFreeAnalysisPrompt, buildPremiumAnalysisPrompt } from "@/lib/ai-prompts";
 import { assessExtractedTextQuality } from "@/lib/extraction-diagnostics";
+import { enrichAnalysisFromRawText } from "@/lib/paper-heuristics";
 import { createClient } from "@/lib/supabase/server";
 import { generateId } from "@/lib/utils";
 import { getModelById, DEFAULT_MODEL_ID } from "@/lib/models";
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
     const rawText = typeof body.rawText === "string" ? body.rawText.trim() : "";
     const modelId = typeof body.model === "string" ? body.model : DEFAULT_MODEL_ID;
     const filename = typeof body.filename === "string" ? body.filename : "unnamed.pdf";
+    const originalFileHash = typeof body.originalFileHash === "string" ? body.originalFileHash : "";
+    const originalInputHash = typeof body.originalInputHash === "string" ? body.originalInputHash : "";
     const requestedType = body.type === "deep" ? "deep" : "summary";
 
     if (rawText.length < 400) {
@@ -58,16 +61,19 @@ export async function POST(req: NextRequest) {
       analysisJson = parseJsonResponse(result.response.text());
     }
 
+    const enrichedJson = enrichAnalysisFromRawText(rawText, analysisJson, filename);
+
     const finalResult: PaperAnalysis = {
       id: generateId(),
       filename,
-      fileHash: `ocr-${generateId()}`,
+      fileHash: originalFileHash || `ocr-${generateId()}`,
+      inputHash: originalInputHash || originalFileHash || undefined,
       analysisType: requestedType,
       createdAt: new Date().toISOString(),
       modelId: modelConfig!.id,
       modelName: `${modelConfig!.name} · OCR`,
       extractionDiagnostics: assessExtractedTextQuality(rawText),
-      ...analysisJson,
+      ...enrichedJson,
     };
 
     return NextResponse.json({ success: true, result: finalResult });

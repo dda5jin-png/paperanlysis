@@ -193,6 +193,9 @@ export default function AnalyzerPage() {
           rawText,
           filename: state.lastFile.name,
           model: state.selectedModel,
+          originalFileHash: state.result?.fileHash,
+          originalInputHash: state.result?.inputHash,
+          type: state.result?.analysisType === "deep" ? "deep" : "summary",
         }),
       });
 
