@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. 논문 기본 정보 저장 (파일 해시 기준 중복 확인) ───
-    let paperId: string = paper.id;
+    let paperId: string | null = null;
     const { data: existingPaper } = await supabase
       .from("papers")
       .select("id")
@@ -84,28 +84,40 @@ export async function POST(req: NextRequest) {
       console.log(`>>> [Save] 기존 논문 레코드 업데이트: ${paperId}`);
     }
 
-    // 논문 메타데이터 저장/업데이트
-    const { error: paperError } = await supabase
-      .from("papers")
-      .upsert({
-        id: paperId,
-        user_id: user.id,
-        filename: paper.filename,
-        title: paper.title,
-        authors: paper.authors,
-        year: paper.year,
-        file_hash: paper.fileHash,
-        model_id: paper.modelId,
-        model_name: paper.modelName,
-        // 하위 호환성을 위해 기존 컬럼들도 유지 (점진적 이전)
-        introduction: paper.introduction,
-        methodology: paper.methodology,
-        conclusion: paper.conclusion,
-        domain_keywords: paper.domainKeywords,
-        created_at: new Date().toISOString(),
-      });
+    const paperPayload = {
+      user_id: user.id,
+      filename: paper.filename,
+      title: paper.title,
+      authors: paper.authors,
+      year: paper.year,
+      file_hash: paper.fileHash,
+      model_id: paper.modelId,
+      model_name: paper.modelName,
+      introduction: paper.introduction,
+      methodology: paper.methodology,
+      conclusion: paper.conclusion,
+      domain_keywords: paper.domainKeywords,
+      created_at: new Date().toISOString(),
+    };
 
-    if (paperError) throw paperError;
+    if (paperId) {
+      const { error: paperError } = await supabase
+        .from("papers")
+        .update(paperPayload)
+        .eq("id", paperId)
+        .eq("user_id", user.id);
+
+      if (paperError) throw paperError;
+    } else {
+      const { data: insertedPaper, error: paperError } = await supabase
+        .from("papers")
+        .insert(paperPayload)
+        .select("id")
+        .single();
+
+      if (paperError) throw paperError;
+      paperId = insertedPaper.id;
+    }
 
     // ── 3. 분석 결과 상세 저장 (analyses 테이블 캐싱) ──────
     // 분석 내용 중 심화 데이터(변수 테이블 등)가 포함되어 있는지 확인하여 타입 결정
