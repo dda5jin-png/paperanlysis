@@ -26,6 +26,10 @@ import {
 interface AnalysisResultProps {
   data: PaperAnalysis;
   onSaved?: () => void;
+  ocrRetryAction?: {
+    loading: boolean;
+    onClick: () => void;
+  };
 }
 
 // ── 섹션 래퍼 ──────────────────────────────────────────────
@@ -85,7 +89,7 @@ const VAR_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────
-export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
+export default function AnalysisResult({ data, onSaved, ocrRetryAction }: AnalysisResultProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -249,6 +253,15 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
             읽을 수 있는 문자 비율은 {Math.round(extractionDiagnostics.readableRatio * 100)}%입니다.
             스캔본이거나 이미지형 PDF라면 OCR 경로를 추가해야 분석 품질이 좋아집니다.
           </p>
+          {ocrRetryAction && (
+            <button
+              onClick={ocrRetryAction.onClick}
+              disabled={ocrRetryAction.loading}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+            >
+              {ocrRetryAction.loading ? "OCR 재분석 중…" : "OCR로 다시 분석"}
+            </button>
+          )}
         </div>
       )}
 

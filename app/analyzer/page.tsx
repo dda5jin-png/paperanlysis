@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import PdfUploader from "@/components/ui/PdfUploader";
 import AnalysisProgress from "@/components/ui/AnalysisProgress";
 import AnalysisResult from "@/components/analyzer/AnalysisResult";
+import { extractTextFromPdfWithOcr } from "@/lib/client-ocr";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_MODEL_ID } from "@/lib/models";
 
@@ -37,6 +38,7 @@ export default function AnalyzerPage() {
   const [state, setState] = useState<AnalysisState>(IDLE_STATE);
   const [session, setSession] = useState<any>(null);
   const [guestUsed, setGuestUsed] = useState(false);
+  const [ocrRetrying, setOcrRetrying] = useState(false);
 
   // 로그인 상태 + 비회원 사용 여부 확인
   useEffect(() => {
@@ -148,6 +150,76 @@ export default function AnalyzerPage() {
     if (!state.lastFile) return;
     setState((prev) => ({ ...prev, selectedModel: "gemini-2.0-flash" }));
     handleUpload(state.lastFile);
+  };
+
+  const handleOcrRetry = async () => {
+    if (!state.lastFile) return;
+
+    setOcrRetrying(true);
+    try {
+      updateState({
+        status: "analyzing",
+        progress: 20,
+        message: "OCR로 PDF를 다시 읽는 중…",
+      });
+
+      const rawText = await extractTextFromPdfWithOcr(state.lastFile, (message, progress) => {
+        updateState({
+          status: "analyzing",
+          progress,
+          message,
+        });
+      });
+
+      updateState({
+        status: "analyzing",
+        progress: 65,
+        message: "OCR 텍스트를 바탕으로 다시 분석하는 중…",
+      });
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (!session) {
+        headers["x-guest-token"] = "guest-ocr";
+      }
+
+      const res = await fetch("/api/parse-text", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({
+          rawText,
+          filename: state.lastFile.name,
+          model: state.selectedModel,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "OCR 재분석에 실패했습니다.");
+      }
+
+      setState((prev) => ({
+        ...prev,
+        status: "done",
+        progress: 100,
+        message: "OCR 재분석 완료",
+        result: json.result as PaperAnalysis,
+      }));
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        status: "error",
+        progress: 0,
+        message: "OCR 재분석 실패",
+        error: error.message || "OCR 재분석에 실패했습니다.",
+        errorCode: "AI_ERROR",
+      }));
+    } finally {
+      setOcrRetrying(false);
+    }
   };
 
   const handleReset = () => setState(IDLE_STATE);
@@ -367,7 +439,17 @@ export default function AnalyzerPage() {
                 </div>
               )}
 
-              <AnalysisResult data={state.result} />
+              <AnalysisResult
+                data={state.result}
+                ocrRetryAction={
+                  state.result.extractionDiagnostics?.ocrSuggested && state.lastFile
+                    ? {
+                        loading: ocrRetrying,
+                        onClick: handleOcrRetry,
+                      }
+                    : undefined
+                }
+              />
             </div>
           )}
         </div>
