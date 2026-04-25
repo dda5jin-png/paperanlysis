@@ -3,6 +3,7 @@ import {
   normalizeArchiveSourceCandidates,
   type ArchiveContent,
 } from "@/lib/archive-content-types";
+import { getDisplayContentTitle } from "@/lib/content-presentation";
 import Link from "next/link";
 
 export function PublishedArchiveArticle({
@@ -18,6 +19,7 @@ export function PublishedArchiveArticle({
 }) {
   const guide = content.guide_data;
   const sourceNotes = normalizeArchiveSourceCandidates(content.source_candidates);
+  const displayTitle = getDisplayContentTitle(content);
 
   return (
     <main>
@@ -33,7 +35,7 @@ export function PublishedArchiveArticle({
           </div>
 
           <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-ink-900 sm:text-4xl">
-            {guide.title}
+            {displayTitle}
           </h1>
           <p className="mt-4 text-sm text-ink-500">
             읽는 시간 {guide.reading_time} · 업데이트 {new Date(content.updated_at).toLocaleDateString("ko-KR")}
@@ -119,7 +121,7 @@ export function PublishedArchiveArticle({
                         <span className="text-xs text-ink-400">·</span>
                         <span className="text-xs text-ink-500">{item.guide_data.reading_time}</span>
                       </div>
-                      <h3 className="mt-2 text-lg font-bold leading-7 text-ink-900">{item.title}</h3>
+                      <h3 className="mt-2 text-lg font-bold leading-7 text-ink-900">{getDisplayContentTitle(item)}</h3>
                       <p className="mt-2 text-sm leading-7 text-ink-700">{item.guide_data.summary}</p>
                     </Link>
                   ))}

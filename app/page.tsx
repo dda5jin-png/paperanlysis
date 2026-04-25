@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { getLatestGuides } from "@/lib/guide-data";
-import { getPublishedArchiveContentsBySection } from "@/lib/content-sections";
+import {
+  getDisplayContentTitle,
+  getPublishedArchiveContentsBySection,
+  getResourceSubcategory,
+} from "@/lib/content-sections";
 
 export const dynamic = "force-dynamic";
 
@@ -157,7 +161,7 @@ export default async function HomePage() {
                 </span>
               </div>
               <h2 className="mt-5 text-[30px] font-black leading-[1.2] tracking-tight text-ink-900">
-                {featuredBlog.guide_data.title}
+                {getDisplayContentTitle(featuredBlog)}
               </h2>
               <p className="mt-4 text-base font-semibold leading-8 text-ink-800">
                 {featuredBlog.guide_data.one_line_summary}
@@ -252,7 +256,7 @@ export default async function HomePage() {
                     </span>
                   </div>
                   <h3 className="mt-4 text-xl font-black leading-8 tracking-tight text-ink-900">
-                    {item.guide_data.title}
+                    {getDisplayContentTitle(item)}
                   </h3>
                   <p className="mt-3 line-clamp-4 text-sm leading-7 text-ink-700">
                     {item.guide_data.summary}
@@ -332,7 +336,10 @@ export default async function HomePage() {
                   href={`/resources/${item.slug}`}
                   className="rounded-[28px] border border-ink-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200"
                 >
-                  <h3 className="text-xl font-black leading-8 tracking-tight text-ink-900">{item.title}</h3>
+                  <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700">
+                    {getResourceSubcategory(item)}
+                  </span>
+                  <h3 className="mt-4 text-xl font-black leading-8 tracking-tight text-ink-900">{getDisplayContentTitle(item)}</h3>
                   <p className="mt-3 line-clamp-4 text-sm leading-7 text-ink-700">{item.guide_data.summary}</p>
                 </Link>
               ))}

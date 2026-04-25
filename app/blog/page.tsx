@@ -24,6 +24,7 @@ export default async function BlogPage() {
         contents={contents}
         searchPlaceholder="논문 블로그 검색: 지도교수, 실패 사례, 주제, 통과 전략"
         emptyMessage="아직 공개된 논문 블로그 글이 없습니다."
+        categoryLabelTitle="막히는 순간별 보기"
       />
     </main>
   );

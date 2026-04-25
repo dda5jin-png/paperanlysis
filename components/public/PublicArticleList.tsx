@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import type { ArchiveContent } from "@/lib/archive-content-types";
+import { getDisplayContentTitle } from "@/lib/content-presentation";
 
 export function PublicArticleList({
   title,
@@ -14,6 +15,8 @@ export function PublicArticleList({
   contents,
   searchPlaceholder,
   emptyMessage = "아직 공개된 글이 없습니다.",
+  getCategoryLabel,
+  categoryLabelTitle = "카테고리별 보기",
 }: {
   title: string;
   description: string;
@@ -22,15 +25,19 @@ export function PublicArticleList({
   contents: ArchiveContent[];
   searchPlaceholder?: string;
   emptyMessage?: string;
+  getCategoryLabel?: (item: ArchiveContent) => string;
+  categoryLabelTitle?: string;
 }) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("전체");
   const [activeTag, setActiveTag] = useState("전체");
 
   const categories = useMemo(() => {
-    const unique = Array.from(new Set(contents.map((item) => item.category).filter(Boolean)));
+    const unique = Array.from(
+      new Set(contents.map((item) => (getCategoryLabel ? getCategoryLabel(item) : item.category)).filter(Boolean)),
+    );
     return ["전체", ...unique];
-  }, [contents]);
+  }, [contents, getCategoryLabel]);
 
   const topTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -52,16 +59,17 @@ export function PublicArticleList({
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return contents.filter((item) => {
-      const matchesCategory = activeCategory === "전체" || item.category === activeCategory;
+      const categoryLabel = getCategoryLabel ? getCategoryLabel(item) : item.category;
+      const matchesCategory = activeCategory === "전체" || categoryLabel === activeCategory;
       const matchesTag = activeTag === "전체" || item.tags.includes(activeTag);
       if (!normalizedQuery) return matchesCategory && matchesTag;
       const matchesQuery =
-        item.title.toLowerCase().includes(normalizedQuery) ||
+        getDisplayContentTitle(item).toLowerCase().includes(normalizedQuery) ||
         item.guide_data.summary.toLowerCase().includes(normalizedQuery) ||
         item.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery));
       return matchesCategory && matchesTag && matchesQuery;
     });
-  }, [activeCategory, activeTag, contents, query]);
+  }, [activeCategory, activeTag, contents, getCategoryLabel, query]);
 
   return (
     <>
@@ -96,7 +104,7 @@ export function PublicArticleList({
 
           {categories.length > 1 && (
             <div className="mt-8">
-              <div className="text-xs font-black uppercase tracking-[0.16em] text-ink-500">카테고리별 보기</div>
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-ink-500">{categoryLabelTitle}</div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {categories.map((category) => {
                   const active = activeCategory === category;
@@ -159,14 +167,16 @@ export function PublicArticleList({
                 className="block py-6 transition hover:bg-ink-50/60 -mx-5 px-5 sm:-mx-6 sm:px-6"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-brand-700">{item.category}</span>
+                  <span className="text-xs font-semibold text-brand-700">
+                    {getCategoryLabel ? getCategoryLabel(item) : item.category}
+                  </span>
                   <span className="text-xs text-ink-400">·</span>
                   <span className="text-xs text-ink-500">
                     {new Date(item.published_at ?? item.updated_at).toLocaleDateString("ko-KR")}
                   </span>
                 </div>
                 <div className="mt-2 text-lg font-semibold leading-[1.45] text-ink-900 sm:text-xl">
-                  {item.title}
+                  {getDisplayContentTitle(item)}
                 </div>
                 <div className="mt-2 text-[15px] leading-7 text-ink-700">{item.guide_data.summary}</div>
                 <div className="mt-3 flex flex-wrap gap-2">

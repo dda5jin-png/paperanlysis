@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import type { ArchiveContent } from "@/lib/archive-content-types";
+export { getDisplayContentTitle, getResourceSubcategory } from "@/lib/content-presentation";
 
 export type PublicSection = "blog" | "resources";
 

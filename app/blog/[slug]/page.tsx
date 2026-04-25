@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PublishedArchiveArticle } from "@/components/public/PublishedArchiveArticle";
 import {
   classifyArchiveContent,
+  getDisplayContentTitle,
   getPublishedContentBySlug,
   getRelatedPublishedContents,
 } from "@/lib/content-sections";
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${content.title} | 논문 블로그`,
+    title: `${getDisplayContentTitle(content)} | 논문 블로그`,
     description: content.guide_data.summary,
     keywords: content.tags,
     alternates: { canonical: `/blog/${content.slug}` },
