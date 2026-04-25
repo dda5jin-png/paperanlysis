@@ -12,26 +12,56 @@ export function PublicArticleList({
   sectionLabel,
   basePath,
   contents,
+  searchPlaceholder,
+  emptyMessage = "아직 공개된 글이 없습니다.",
 }: {
   title: string;
   description: string;
   sectionLabel: string;
   basePath: string;
   contents: ArchiveContent[];
+  searchPlaceholder?: string;
+  emptyMessage?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("전체");
+  const [activeTag, setActiveTag] = useState("전체");
+
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(contents.map((item) => item.category).filter(Boolean)));
+    return ["전체", ...unique];
+  }, [contents]);
+
+  const topTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    contents.forEach((item) => {
+      item.tags.forEach((tag) => {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      });
+    });
+
+    return [
+      "전체",
+      ...Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([tag]) => tag),
+    ];
+  }, [contents]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return contents.filter((item) => {
-      if (!normalizedQuery) return true;
-      return (
+      const matchesCategory = activeCategory === "전체" || item.category === activeCategory;
+      const matchesTag = activeTag === "전체" || item.tags.includes(activeTag);
+      if (!normalizedQuery) return matchesCategory && matchesTag;
+      const matchesQuery =
         item.title.toLowerCase().includes(normalizedQuery) ||
         item.guide_data.summary.toLowerCase().includes(normalizedQuery) ||
-        item.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
-      );
+        item.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery));
+      return matchesCategory && matchesTag && matchesQuery;
     });
-  }, [contents, query]);
+  }, [activeCategory, activeTag, contents, query]);
 
   return (
     <>
@@ -46,7 +76,7 @@ export function PublicArticleList({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={`${title} 검색`}
+                placeholder={searchPlaceholder ?? `${title} 검색`}
                 className="h-12 w-full rounded-xl border border-ink-200 bg-white pl-11 pr-4 text-[15px] outline-none placeholder:text-ink-500 focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
               />
               <svg
@@ -63,6 +93,54 @@ export function PublicArticleList({
               </svg>
             </div>
           </div>
+
+          {categories.length > 1 && (
+            <div className="mt-8">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-ink-500">카테고리별 보기</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {categories.map((category) => {
+                  const active = activeCategory === category;
+                  return (
+                    <button
+                      key={category}
+                      onClick={() => setActiveCategory(category)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        active
+                          ? "border-ink-900 bg-ink-900 text-white"
+                          : "border-ink-200 bg-white text-ink-700 hover:border-ink-300"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {topTags.length > 1 && (
+            <div className="mt-6">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-ink-500">자주 찾는 키워드</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {topTags.map((tag) => {
+                  const active = activeTag === tag;
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => setActiveTag(tag)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        active
+                          ? "border-brand-700 bg-brand-700 text-white"
+                          : "border-brand-100 bg-brand-50 text-brand-700 hover:border-brand-200"
+                      }`}
+                    >
+                      {tag === "전체" ? tag : `#${tag}`}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </Container>
       </section>
 
@@ -102,7 +180,7 @@ export function PublicArticleList({
             ))
           ) : (
             <div className="py-16 text-center text-sm font-semibold text-ink-500">
-              아직 공개된 글이 없습니다.
+              {emptyMessage}
             </div>
           )}
         </div>

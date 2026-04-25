@@ -20,10 +20,12 @@ export default async function ResourcesPage() {
     <main>
       <PublicArticleList
         title="논문 자료실"
-        description="논문 예시 분석, 심사규정, 데이터 사이트, 부동산 논문 사례처럼 참고용으로 찾아보게 되는 자료를 한곳에 모았습니다."
+        description="논문 예시, 심사규정, 데이터 사이트, 부동산 논문 사례처럼 저장해두고 반복해서 보게 되는 자료를 한곳에 정리했습니다. 자료를 찾는 데 시간을 쓰지 않고, 필요한 항목을 버튼으로 좁혀가며 바로 볼 수 있게 구성했습니다."
         sectionLabel="Resources"
         basePath="/resources"
         contents={contents}
+        searchPlaceholder="자료실 검색: 심사규정, 데이터, 사례, 예시"
+        emptyMessage="아직 공개된 자료실 글이 없습니다."
       />
 
       <section className="border-t border-ink-200 bg-ink-50">

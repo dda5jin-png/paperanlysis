@@ -24,25 +24,73 @@ export default async function HomePage() {
           <div className="max-w-4xl">
             <SectionLabel>Research Writing Platform</SectionLabel>
             <h1 className="mt-5 text-[34px] font-black leading-[1.12] tracking-tight text-ink-900 sm:text-[46px] lg:text-[58px]">
-              논문 정보를 읽고,
+              논문 처음 쓰면
               <br className="hidden sm:block" />
-              필요할 때 도구를 쓰는 플랫폼으로 바꿉니다.
+              다 여기서 막힙니다
             </h1>
             <p className="mt-6 max-w-3xl text-[17px] leading-8 text-ink-700 sm:text-[18px]">
-              이 사이트는 논문 작성 방법, 연구 주제 찾기, 연구문제 설계, 논문 구조, 데이터 찾기 같은
-              정보를 먼저 제공하고, PDF 분석 도구는 그다음 단계에서 활용할 수 있도록 구성했습니다.
-              즉 “도구만 있는 SaaS”가 아니라 “정보 제공 플랫폼 + 분석기”를 지향합니다.
+              논문 읽기부터 정리, 분석까지 한 번에 해결합니다. 처음 논문을 쓰는 사람도 끝까지 갈 수 있도록 만든 도구입니다.
             </p>
+            <div className="mt-7 max-w-3xl space-y-3 rounded-[28px] border border-ink-200 bg-white/80 p-6 shadow-sm">
+              <p className="text-[16px] leading-8 text-ink-800">
+                저도 처음엔 논문을 3번이나 갈아엎었습니다.
+              </p>
+              <p className="text-[16px] leading-8 text-ink-800">
+                논문은 ‘읽는 것’보다 ‘정리’에서 막힙니다.
+              </p>
+              <p className="text-[16px] font-semibold leading-8 text-ink-900">
+                그래서 이걸 만들었습니다.
+              </p>
+            </div>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/guide">
-                <Button size="lg">논문 가이드 보기</Button>
+              <Link href="/analyzer">
+                <Button size="lg">논문 분석기 시작하기</Button>
               </Link>
-              <Link href="/blog">
+              <Link href="/guide">
                 <Button variant="secondary" size="lg">
-                  논문 블로그 읽기
+                  논문 가이드 보기
                 </Button>
               </Link>
             </div>
+          </div>
+        </Container>
+      </section>
+
+      <section className="border-y border-ink-200 bg-white">
+        <Container className="py-14 lg:py-16">
+          <SectionLabel>User Flow</SectionLabel>
+          <h2 className="mt-4 text-3xl font-black tracking-tight text-ink-900">지금 당신 상태는 어디인가요?</h2>
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            <Link
+              href="/guide"
+              className="rounded-[28px] border border-ink-200 bg-white p-7 transition hover:border-brand-300 hover:shadow-sm"
+            >
+              <div className="text-sm font-black text-brand-700">1. 논문 처음 시작</div>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-ink-900">무엇부터 해야 할지 모르겠다면</h3>
+              <p className="mt-3 leading-7 text-ink-700">
+                연구 주제, 연구문제, 논문 구조, 참고문헌처럼 처음 시작할 때 꼭 필요한 기본 흐름부터 정리해드립니다.
+              </p>
+            </Link>
+            <Link
+              href="/analyzer"
+              className="rounded-[28px] border border-ink-200 bg-ink-50/60 p-7 transition hover:border-brand-300 hover:shadow-sm"
+            >
+              <div className="text-sm font-black text-brand-700">2. 논문 쓰는 중</div>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-ink-900">읽은 논문이 머릿속에서 엉킨다면</h3>
+              <p className="mt-3 leading-7 text-ink-700">
+                PDF를 올리면 핵심 구조를 분석하고, 인용 복사와 Markdown 복사, PDF 저장까지 이어서 정리할 수 있습니다.
+              </p>
+            </Link>
+            <Link
+              href="/blog"
+              className="rounded-[28px] border border-ink-200 bg-white p-7 transition hover:border-brand-300 hover:shadow-sm"
+            >
+              <div className="text-sm font-black text-brand-700">3. 막혀있는 상태</div>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-ink-900">왜 안 풀리는지부터 알고 싶다면</h3>
+              <p className="mt-3 leading-7 text-ink-700">
+                연구 주제 못 잡는 이유, 지도교수에게 혼나는 이유, 중간에 포기하게 되는 이유를 문제 중심으로 풀어줍니다.
+              </p>
+            </Link>
           </div>
         </Container>
       </section>
@@ -58,8 +106,7 @@ export default async function HomePage() {
             </div>
             <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">논문 작성 핵심 가이드</h2>
             <p className="mt-3 leading-7 text-ink-700">
-              논문 작성 방법, 연구 주제 찾는 법, 연구문제 만들기, 논문 구조, 데이터 찾기, Zotero 활용법처럼
-              기본이 되는 주제를 긴 글로 정리합니다.
+              논문 처음 시작할 때 반드시 막히는 지점을 큰 흐름으로 설명합니다. 연구 주제, 연구문제, 논문 구조, 참고문헌 관리 같은 기본기를 차근차근 정리합니다.
             </p>
           </Link>
 
@@ -72,8 +119,7 @@ export default async function HomePage() {
             </div>
             <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">실전형 논문 블로그</h2>
             <p className="mt-3 leading-7 text-ink-700">
-              지도교수 대응, 심사 준비, 실패 사례, 논문 통과 전략처럼 대학원 생활에서 실제로 막히는 순간을
-              설명형 문장으로 풀어낸 글을 모았습니다.
+              논문 쓰다가 실제로 막히는 순간을 경험 기반으로 풀어낸 글입니다. 왜 주제가 안 잡히는지, 왜 지도교수 미팅이 두려운지부터 먼저 이야기합니다.
             </p>
           </Link>
 
@@ -86,8 +132,7 @@ export default async function HomePage() {
             </div>
             <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">자료실과 참고 출처</h2>
             <p className="mt-3 leading-7 text-ink-700">
-              논문 예시, 심사규정, 부동산 논문 사례, 데이터 사이트, 학술 자료 출처처럼 찾아보기 좋은 자료를
-              모아둔 섹션입니다.
+              심사규정, 논문 예시, 사례, 데이터 사이트처럼 저장해두고 반복해서 찾는 자료를 버튼형 분류로 정리해둔 섹션입니다.
             </p>
           </Link>
         </Container>
@@ -137,11 +182,10 @@ export default async function HomePage() {
                 논문 블로그
               </div>
               <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">
-                최신 정보형 글이 여기에 쌓입니다
+                막힐 때 바로 읽을 글이 여기에 쌓입니다
               </h2>
               <p className="mt-3 leading-7 text-ink-700">
-                지도교수 미팅, 심사규정, 논문 구조, 실패 사례처럼 실제로 막히는 지점을 하나씩
-                풀어주는 설명형 글이 순차적으로 공개됩니다.
+                논문 주제, 지도교수 미팅, 심사규정, 실패 사례처럼 대학원생이 자주 막히는 지점을 하나씩 풀어주는 글이 순차적으로 공개됩니다.
               </p>
             </div>
           )}
@@ -153,15 +197,15 @@ export default async function HomePage() {
             <div className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-ink-800">
               Analyzer
             </div>
-            <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">
-              필요할 때 쓰는 논문 분석 도구
-            </h2>
-            <p className="mt-3 leading-7 text-ink-700">
-              분석기는 유지하되, 사이트 전체에서는 보조 도구로 배치합니다. PDF 업로드 후 요약, 인용 복사, Markdown 복사, PDF 저장, 서고 누적 관리까지 이어집니다.
-            </p>
-            <span className="mt-6 inline-flex font-bold text-ink-700 transition group-hover:translate-x-1">
-              분석기 열기 →
-            </span>
+              <h2 className="mt-5 text-2xl font-black tracking-tight text-ink-900">
+              논문 읽고 정리할 때 바로 쓰는 분석 도구
+              </h2>
+              <p className="mt-3 leading-7 text-ink-700">
+              논문은 읽는 것보다 정리할 때 더 많이 막힙니다. PDF 업로드 후 요약, 인용 복사, Markdown 복사, PDF 저장, 서고 누적 관리까지 한 흐름으로 이어집니다.
+              </p>
+              <span className="mt-6 inline-flex font-bold text-ink-700 transition group-hover:translate-x-1">
+                분석기 열기 →
+              </span>
           </Link>
         </Container>
       </section>
@@ -175,7 +219,7 @@ export default async function HomePage() {
                 최신 논문 블로그
               </h2>
               <p className="mt-3 max-w-2xl text-[16px] leading-7 text-ink-700">
-                실제로 발행된 설명형 글을 최신순으로 보여줍니다. 논문을 쓰면서 자주 막히는 지점을 문제 해결형 콘텐츠로 바로 읽어보세요.
+                실제 대학원생이 자주 막히는 지점을 문제 중심으로 정리한 글입니다. 논문 쓰다가 멈춘 자리에서 바로 읽고 다음 행동으로 넘어갈 수 있게 구성했습니다.
               </p>
             </div>
             <Link href="/blog" className="hidden text-sm font-bold text-brand-700 hover:text-brand-800 sm:inline-flex">
@@ -220,7 +264,7 @@ export default async function HomePage() {
                       </span>
                     ))}
                   </div>
-                  <p className="mt-5 text-sm font-bold text-brand-700">아카이브 읽기 →</p>
+                  <p className="mt-5 text-sm font-bold text-brand-700">이 글 읽기 →</p>
                 </Link>
               ))}
             </div>
@@ -235,7 +279,7 @@ export default async function HomePage() {
               <SectionLabel>Core Guides</SectionLabel>
               <h2 className="mt-4 text-3xl font-black tracking-tight text-ink-900">핵심 논문 가이드</h2>
               <p className="mt-3 max-w-2xl text-[16px] leading-7 text-ink-700">
-                반복해서 찾게 되는 주제는 가이드 섹션에서 긴 글 형태로 정리합니다.
+                같은 질문을 반복하게 되는 주제는 가이드에서 긴 글로 묶어둡니다. 처음 논문을 쓰는 사람도 한 단계씩 따라갈 수 있게 정리했습니다.
               </p>
             </div>
             <Link href="/guide" className="hidden text-sm font-bold text-brand-700 hover:text-brand-800 sm:inline-flex">
@@ -274,7 +318,7 @@ export default async function HomePage() {
                 <SectionLabel>Resources</SectionLabel>
                 <h2 className="mt-4 text-3xl font-black tracking-tight text-ink-900">자료실에서 바로 찾는 정보</h2>
                 <p className="mt-3 max-w-2xl text-[16px] leading-7 text-ink-700">
-                  심사규정, 논문 예시, 사례, 데이터 자료처럼 참고용으로 자주 찾는 글을 모았습니다.
+                  심사규정, 논문 예시, 사례, 데이터 자료처럼 저장해두고 자주 찾는 정보를 한곳에 모았습니다.
                 </p>
               </div>
               <Link href="/resources" className="hidden text-sm font-bold text-brand-700 hover:text-brand-800 sm:inline-flex">
