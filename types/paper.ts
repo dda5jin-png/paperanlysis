@@ -46,6 +46,7 @@ export interface PaperAnalysis {
   createdAt: string;
 
   // v4.0 핵심 필드 (원문 기반)
+  researchPurpose?: string;                // 연구 목적
   summary?: string;                        // 핵심 요약
   hypotheses?: HypothesisItem[];           // 연구 가설 (원문)
   hasQuantitativeAnalysis?: boolean;       // 계량분석 여부

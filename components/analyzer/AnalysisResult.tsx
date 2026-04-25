@@ -94,6 +94,11 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
 
   // v4.0 필드 우선, 하위 호환 필드 폴백
   const summary = data.summary || data.introduction?.oneLineSummary || "";
+  const researchPurpose =
+    data.researchPurpose ||
+    data.introduction?.problemStatement ||
+    data.introduction?.researchQuestion ||
+    structuredPurposeFromSummary(data.structuredSummary ?? []);
   const hypotheses = data.hypotheses ?? [];
   const hasQuant = data.hasQuantitativeAnalysis ?? (
     (data.methodology?.variables?.length ?? 0) > 0
@@ -107,6 +112,9 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
     (data.conclusion?.limitations ? [data.conclusion.limitations] : []);
   const structuredSummary = data.structuredSummary ?? [];
   const keywords = data.domainKeywords ?? [];
+  const dependentVariables = variables.filter((item) => item.type === "dependent");
+  const independentVariables = variables.filter((item) => item.type === "independent");
+  const otherVariables = variables.filter((item) => !["dependent", "independent"].includes(item.type));
   const citationText = useMemo(() => buildCitationText(data), [data]);
   const markdownText = useMemo(() => buildMarkdownText(data), [data]);
 
@@ -232,10 +240,10 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
         )}
       </div>
 
-      {/* ── 1. 핵심 요약 ─────────────────────────────────── */}
-      {summary && (
-        <Section icon={<BookOpen className="w-4 h-4" />} title="핵심 요약">
-          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{summary}</p>
+      {/* ── 1. 연구 목적 ─────────────────────────────────── */}
+      {researchPurpose && (
+        <Section icon={<BookOpen className="w-4 h-4" />} title="연구 목적">
+          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{researchPurpose}</p>
         </Section>
       )}
 
@@ -266,13 +274,48 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
         )}
       </Section>
 
-      {/* ── 3. 변수 구조 / 논리 구조 ─────────────────────── */}
+      {/* ── 3. 연구 방법 ─────────────────────────────────── */}
+      <Section
+        icon={<ListTree className="w-4 h-4" />}
+        title="연구 방법"
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">연구유형</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
+              {data.methodology?.researchType || "논문에 명시된 연구유형이 없습니다."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">대상 / 자료</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
+              {data.methodology?.dataSource || "논문에 명시된 자료 출처가 없습니다."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">분석방법</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
+              {data.methodology?.analysisMethod?.length
+                ? data.methodology.analysisMethod.join(", ")
+                : "논문에 명시된 분석방법이 없습니다."}
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── 4. 변수 구조 / 논리 구조 ─────────────────────── */}
       {hasQuant && variables.length > 0 ? (
         <Section
           icon={<ArrowRightLeft className="w-4 h-4" />}
-          title="변수 구조"
+          title="종속변수 · 독립변수"
           badge={`${variables.length}개`}
         >
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <VariableGroupCard title="종속변수" items={dependentVariables} />
+            <VariableGroupCard title="독립변수" items={independentVariables} />
+            <VariableGroupCard title="기타 변수" items={otherVariables} />
+          </div>
+
           <div className="overflow-x-auto -mx-1">
             <table className="w-full text-sm">
               <thead>
@@ -336,7 +379,53 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
         </Section>
       ) : null}
 
-      {/* ── 4. 연구의 한계 ───────────────────────────────── */}
+      {/* ── 5. 연구 결론 ───────────────────────────────── */}
+      <Section
+        icon={<BookOpen className="w-4 h-4" />}
+        title="연구 결론"
+      >
+        {data.conclusion?.keyFindings?.length || data.conclusion?.implications?.length || summary ? (
+          <div className="space-y-4">
+            {data.conclusion?.keyFindings?.length ? (
+              <div>
+                <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">핵심 결과</p>
+                <ul className="space-y-2">
+                  {data.conclusion.keyFindings.map((finding, index) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                      <p className="text-sm leading-relaxed text-slate-700">{finding}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {data.conclusion?.implications?.length ? (
+              <div>
+                <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">시사점</p>
+                <ul className="space-y-2">
+                  {data.conclusion.implications.map((implication, index) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                      <p className="text-sm leading-relaxed text-slate-700">{implication}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {!data.conclusion?.keyFindings?.length && !data.conclusion?.implications?.length && summary ? (
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{summary}</p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400 italic">
+            논문에 명시된 결론 정보를 충분히 찾지 못했습니다.
+          </p>
+        )}
+      </Section>
+
+      {/* ── 6. 연구의 한계 ───────────────────────────────── */}
       <Section
         icon={<AlertTriangle className="w-4 h-4" />}
         title="연구의 한계"
@@ -358,6 +447,41 @@ export default function AnalysisResult({ data, onSaved }: AnalysisResultProps) {
         )}
       </Section>
 
+    </div>
+  );
+}
+
+function structuredPurposeFromSummary(sections: StructuredSection[]) {
+  const purposeSection = sections.find((section) =>
+    ["연구 목적", "문제 제기", "연구 배경", "연구 질문"].some((keyword) =>
+      section.section.includes(keyword),
+    ),
+  );
+
+  return purposeSection?.content || "";
+}
+
+function VariableGroupCard({
+  title,
+  items,
+}: {
+  title: string;
+  items: VariableItem[];
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+      <p className="text-xs font-black uppercase tracking-wider text-slate-500">{title}</p>
+      {items.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {items.map((item, index) => (
+            <li key={`${title}-${index}`} className="text-sm font-semibold text-slate-800">
+              {item.name}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-slate-400">해당 정보가 없습니다.</p>
+      )}
     </div>
   );
 }
