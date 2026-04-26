@@ -90,6 +90,37 @@ const VAR_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 function inferPaperMode(data: PaperAnalysis, variables: VariableItem[]) {
+  const explicitType = data.paperType;
+  if (explicitType === "quantitative") {
+    return {
+      id: "quant",
+      label: "정량 연구",
+      tone: "가설, 변수, 분석방법이 중요한 논문입니다.",
+      badge: "bg-blue-50 text-blue-700 border-blue-200",
+      focus: ["연구 목적", "연구 가설", "연구 방법", "종속변수 · 독립변수", "연구 결론", "연구의 한계"],
+    } as const;
+  }
+
+  if (explicitType === "policy") {
+    return {
+      id: "policy",
+      label: "제도·정책 분석",
+      tone: "가설보다 제도 배경, 분석 대상, 개선 방향과 시사점이 중요한 논문입니다.",
+      badge: "bg-violet-50 text-violet-700 border-violet-200",
+      focus: ["연구 목적", "연구 방법", "논문 구조 요약", "연구 결론", "연구의 한계"],
+    } as const;
+  }
+
+  if (explicitType === "qualitative") {
+    return {
+      id: "qual",
+      label: "문헌·질적 연구",
+      tone: "가설이나 변수보다 연구 구조, 자료, 결론 흐름이 중요한 논문입니다.",
+      badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      focus: ["연구 목적", "연구 방법", "논문 구조 요약", "연구 결론", "연구의 한계"],
+    } as const;
+  }
+
   const researchType = data.methodology?.researchType || "";
   const keywordText = [
     data.summary,

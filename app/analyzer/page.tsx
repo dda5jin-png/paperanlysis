@@ -19,7 +19,7 @@ import PdfUploader from "@/components/ui/PdfUploader";
 import AnalysisProgress from "@/components/ui/AnalysisProgress";
 import AnalysisResult from "@/components/analyzer/AnalysisResult";
 import { extractTextFromPdfWithOcr } from "@/lib/client-ocr";
-import { mergePreferredAnalysis } from "@/lib/analysis-quality";
+import { inferPaperTypeFromResult, isWeakForPaperType, mergePreferredAnalysis } from "@/lib/analysis-quality";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_MODEL_ID } from "@/lib/models";
 
@@ -72,11 +72,11 @@ export default function AnalyzerPage() {
   const shouldPreferOcr = (result: PaperAnalysis) =>
     !result.extractionDiagnostics?.reportPdfDetected &&
     !result.extractionDiagnostics?.ocrApplied &&
-    (Boolean(result.extractionDiagnostics?.ocrSuggested) || isStructurallyWeak(result));
+    (Boolean(result.extractionDiagnostics?.ocrSuggested) || isStructurallyWeak(result) || isWeakForPaperType(result));
 
   const shouldOfferOcrRetry = (result: PaperAnalysis) =>
     !result.extractionDiagnostics?.reportPdfDetected &&
-    (Boolean(result.extractionDiagnostics?.ocrSuggested) || isStructurallyWeak(result));
+    (Boolean(result.extractionDiagnostics?.ocrSuggested) || isStructurallyWeak(result) || isWeakForPaperType(result));
 
   const runOcrRetry = async (baseResult?: PaperAnalysis, fileOverride?: File) => {
     const targetFile = fileOverride || state.lastFile;
@@ -140,7 +140,9 @@ export default function AnalyzerPage() {
         ...prev,
         status: "done",
         progress: 100,
-        message: usedCandidate ? "OCR 보정 분석 완료" : "기본 추출 결과 유지",
+        message: usedCandidate
+          ? `${inferPaperTypeFromResult(preferredResult) === "quantitative" ? "정량 논문" : "논문"} OCR 보정 분석 완료`
+          : "기본 추출 결과 유지",
         result: preferredResult,
       }));
 

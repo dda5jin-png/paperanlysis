@@ -33,6 +33,8 @@ export interface ExtractionDiagnostics {
   warning?: string;
 }
 
+export type PaperType = "quantitative" | "policy" | "qualitative";
+
 export interface Introduction {
   problemStatement?: string;
   oneLineSummary?: string;
@@ -54,6 +56,7 @@ export interface PaperAnalysis {
   modelName: string;
   createdAt: string;
   extractionDiagnostics?: ExtractionDiagnostics;
+  paperType?: PaperType;
 
   // v4.0 핵심 필드 (원문 기반)
   researchPurpose?: string;                // 연구 목적

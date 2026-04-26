@@ -1,4 +1,4 @@
-import type { PaperAnalysis, StructuredSection, VariableItem } from "@/types/paper";
+import type { PaperAnalysis, PaperType, StructuredSection, VariableItem } from "@/types/paper";
 
 type MaybeString = string | null | undefined;
 
@@ -100,6 +100,28 @@ function inferResearchType(rawText: string) {
   if (/시계열|arima|var\b|vecm|garch/i.test(rawText)) return "시계열 분석";
   if (source.includes("interview") || /심층면접|인터뷰/.test(rawText)) return "질적연구";
   return "";
+}
+
+function inferPaperType(rawText: string, analysis: any): PaperType {
+  const source = `${rawText}\n${analysis?.summary || ""}\n${analysis?.researchPurpose || ""}\n${analysis?.methodology?.researchType || ""}`.toLowerCase();
+  const variableCount = analysis?.methodology?.variables?.length ?? 0;
+  const hypothesisCount = analysis?.hypotheses?.length ?? 0;
+  const analysisMethods = analysis?.methodology?.analysisMethod ?? [];
+
+  if (
+    variableCount > 0 ||
+    hypothesisCount > 0 ||
+    /회귀|구조방정식|패널|시계열|실증|설문|통계|표본|분산분석|t-검정|did|arima|vecm|garch/.test(source) ||
+    analysisMethods.some((item: string) => /회귀|패널|시계열|구조방정식|설문/.test(item))
+  ) {
+    return "quantitative";
+  }
+
+  if (/정책|제도|법제|개선방안|정비방안|정책적 시사점|제도개선|법령/.test(source)) {
+    return "policy";
+  }
+
+  return "qualitative";
 }
 
 function inferAnalysisMethods(rawText: string) {
@@ -516,6 +538,10 @@ export function enrichAnalysisFromRawText(rawText: string, analysis: any, filena
         .map((item) => item.trim())
         .filter((item) => item.length > 1);
     }
+  }
+
+  if (!enriched.paperType) {
+    enriched.paperType = inferPaperType(rawText, enriched);
   }
 
   return enriched;

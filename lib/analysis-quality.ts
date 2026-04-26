@@ -1,4 +1,4 @@
-import type { PaperAnalysis } from "@/types/paper";
+import type { PaperAnalysis, PaperType } from "@/types/paper";
 
 function isPlaceholder(value?: string | null) {
   if (!value) return true;
@@ -27,25 +27,48 @@ function countUsefulVariables(result: PaperAnalysis) {
   return result.methodology?.variables?.filter((item) => item?.name && !item.name.includes("변수명")).length ?? 0;
 }
 
+export function inferPaperTypeFromResult(result?: PaperAnalysis | null): PaperType {
+  if (!result) return "qualitative";
+  if (result.paperType) return result.paperType;
+  if (
+    (result.hypotheses?.length ?? 0) > 0 ||
+    countUsefulVariables(result) > 0 ||
+    /회귀|패널|시계열|실증|설문|통계/.test(result.methodology?.researchType || "")
+  ) {
+    return "quantitative";
+  }
+  if (
+    /정책|제도|법제/.test(result.methodology?.researchType || "") ||
+    /정책|제도|법제|개선방안/.test(
+      `${result.researchPurpose || ""} ${result.summary || ""} ${(result.conclusion?.policySuggestions || []).join(" ")}`,
+    )
+  ) {
+    return "policy";
+  }
+  return "qualitative";
+}
+
 export function scoreAnalysisQuality(result?: PaperAnalysis | null) {
   if (!result) return -999;
 
   let score = 0;
+  const paperType = inferPaperTypeFromResult(result);
+  const variableCount = countUsefulVariables(result);
 
   if (result.researchPurpose && !isPlaceholder(result.researchPurpose) && result.researchPurpose.length > 20) score += 8;
-  if ((result.hypotheses?.length ?? 0) > 0) score += 7;
+  if ((result.hypotheses?.length ?? 0) > 0) score += paperType === "quantitative" ? 9 : 3;
   if (result.methodology?.researchType && !isPlaceholder(result.methodology.researchType)) score += 4;
   if (result.methodology?.dataSource && !isPlaceholder(result.methodology.dataSource)) score += 4;
   if (result.methodology?.researchTarget && !isPlaceholder(result.methodology.researchTarget)) score += 3;
   if (result.methodology?.dataPeriod && !isPlaceholder(result.methodology.dataPeriod)) score += 2;
   if (result.methodology?.sampleSize && !isPlaceholder(result.methodology.sampleSize)) score += 2;
   if ((result.methodology?.analysisMethod?.length ?? 0) > 0) score += 5;
-  if (countUsefulVariables(result) > 0) score += 8;
+  if (variableCount > 0) score += paperType === "quantitative" ? 10 : 3;
   if (hasUsefulList(result.conclusion?.keyFindings)) score += 7;
-  if (hasUsefulList(result.conclusion?.implications)) score += 4;
-  if (hasUsefulList(result.conclusion?.policySuggestions)) score += 3;
+  if (hasUsefulList(result.conclusion?.implications)) score += paperType === "policy" ? 6 : 4;
+  if (hasUsefulList(result.conclusion?.policySuggestions)) score += paperType === "policy" ? 7 : 3;
   if (hasUsefulList(result.limitations)) score += 4;
-  if (hasUsefulList(result.structuredSummary?.map((item) => item.content) ?? [])) score += 3;
+  if (hasUsefulList(result.structuredSummary?.map((item) => item.content) ?? [])) score += paperType === "qualitative" ? 6 : 3;
 
   if (result.title && !looksLikeFilename(result.title) && !looksGarbled(result.title)) score += 5;
   if ((result.authors?.length ?? 0) > 0) score += 2;
@@ -56,6 +79,28 @@ export function scoreAnalysisQuality(result?: PaperAnalysis | null) {
   if (looksGarbled(result.title)) score -= 6;
 
   return score;
+}
+
+export function isWeakForPaperType(result?: PaperAnalysis | null) {
+  if (!result) return true;
+  const paperType = inferPaperTypeFromResult(result);
+  const commonMissing = !result.researchPurpose || !(result.conclusion?.keyFindings?.length ?? 0);
+  if (paperType === "quantitative") {
+    return (
+      commonMissing ||
+      !(result.hypotheses?.length ?? 0) ||
+      !countUsefulVariables(result) ||
+      !(result.methodology?.analysisMethod?.length ?? 0)
+    );
+  }
+  if (paperType === "policy") {
+    return (
+      commonMissing ||
+      !(result.conclusion?.policySuggestions?.length ?? 0) ||
+      !(result.structuredSummary?.length ?? 0)
+    );
+  }
+  return commonMissing || !(result.structuredSummary?.length ?? 0) || !(result.methodology?.dataSource?.length ?? 0);
 }
 
 export function mergePreferredAnalysis(base: PaperAnalysis, candidate: PaperAnalysis) {
