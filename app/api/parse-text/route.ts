@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { buildFreeAnalysisPrompt, buildPremiumAnalysisPrompt, PROMPT_VERSION } from "@/lib/ai-prompts";
 import { assessExtractedTextQuality } from "@/lib/extraction-diagnostics";
 import { enrichAnalysisFromRawText } from "@/lib/paper-heuristics";
+import { mergePreferredAnalysis, scoreAnalysisQuality } from "@/lib/analysis-quality";
 import { createClient } from "@/lib/supabase/server";
 import { generateId } from "@/lib/utils";
 import { getModelById, DEFAULT_MODEL_ID } from "@/lib/models";
@@ -90,26 +91,38 @@ export async function POST(req: NextRequest) {
     };
 
     if (user && originalInputHash) {
-      const existing = await supabase
+      const { data: existingAnalysis } = await supabase
         .from("analyses")
-        .update({
-          result_json: finalResult,
-          prompt_version: PROMPT_VERSION,
-          status: "completed",
-        })
+        .select("id,result_json")
         .eq("user_id", user.id)
         .eq("input_hash", originalInputHash)
-        .select("id")
-        .limit(1);
+        .limit(1)
+        .maybeSingle();
 
-      if (!existing.data?.length) {
+      const existingResult = existingAnalysis?.result_json as PaperAnalysis | null | undefined;
+      const { result: preferredResult, usedCandidate } = existingResult
+        ? mergePreferredAnalysis(existingResult, finalResult)
+        : { result: finalResult, usedCandidate: true };
+
+      if (existingAnalysis?.id) {
+        if (usedCandidate || scoreAnalysisQuality(existingResult) < 0) {
+          await supabase
+            .from("analyses")
+            .update({
+              result_json: preferredResult,
+              prompt_version: PROMPT_VERSION,
+              status: "completed",
+            })
+            .eq("id", existingAnalysis.id);
+        }
+      } else {
         await supabase.from("analyses").insert({
           user_id: user.id,
           paper_id: crypto.randomUUID(),
           analysis_type: requestedType,
           input_hash: originalInputHash,
           prompt_version: PROMPT_VERSION,
-          result_json: finalResult,
+          result_json: preferredResult,
           status: "completed",
         });
       }

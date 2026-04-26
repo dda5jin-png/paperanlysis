@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import type { PaperAnalysis } from "@/types/paper";
 
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
     }
 
     const paperPayload = {
+      id: paperId || crypto.randomUUID(),
       user_id: user.id,
       filename: paper.filename,
       title: paper.title,

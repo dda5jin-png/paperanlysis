@@ -7,7 +7,7 @@ type OcrProgressCallback = (message: string, progress: number) => void;
 export async function extractTextFromPdfWithOcr(
   file: File,
   onProgress?: OcrProgressCallback,
-  maxPages = 3,
+  maxPages = 5,
 ) {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;

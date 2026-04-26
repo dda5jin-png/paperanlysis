@@ -19,6 +19,7 @@ import PdfUploader from "@/components/ui/PdfUploader";
 import AnalysisProgress from "@/components/ui/AnalysisProgress";
 import AnalysisResult from "@/components/analyzer/AnalysisResult";
 import { extractTextFromPdfWithOcr } from "@/lib/client-ocr";
+import { mergePreferredAnalysis } from "@/lib/analysis-quality";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_MODEL_ID } from "@/lib/models";
 
@@ -71,6 +72,10 @@ export default function AnalyzerPage() {
   const shouldPreferOcr = (result: PaperAnalysis) =>
     !result.extractionDiagnostics?.reportPdfDetected &&
     !result.extractionDiagnostics?.ocrApplied &&
+    (Boolean(result.extractionDiagnostics?.ocrSuggested) || isStructurallyWeak(result));
+
+  const shouldOfferOcrRetry = (result: PaperAnalysis) =>
+    !result.extractionDiagnostics?.reportPdfDetected &&
     (Boolean(result.extractionDiagnostics?.ocrSuggested) || isStructurallyWeak(result));
 
   const runOcrRetry = async (baseResult?: PaperAnalysis, fileOverride?: File) => {
@@ -129,15 +134,17 @@ export default function AnalyzerPage() {
       }
 
       const ocrResult = json.result as PaperAnalysis;
+      const { result: preferredResult, usedCandidate } = mergePreferredAnalysis(targetResult, ocrResult);
+
       setState((prev) => ({
         ...prev,
         status: "done",
         progress: 100,
-        message: "OCR 재분석 완료",
-        result: ocrResult,
+        message: usedCandidate ? "OCR 보정 분석 완료" : "기본 추출 결과 유지",
+        result: preferredResult,
       }));
 
-      return ocrResult;
+      return preferredResult;
     } finally {
       setOcrRetrying(false);
     }
@@ -495,7 +502,7 @@ export default function AnalyzerPage() {
               <AnalysisResult
                 data={state.result}
                 ocrRetryAction={
-                  (shouldPreferOcr(state.result) || state.result.extractionDiagnostics?.ocrSuggested) && state.lastFile
+                  shouldOfferOcrRetry(state.result) && state.lastFile
                     ? {
                         loading: ocrRetrying,
                         onClick: handleOcrRetry,
