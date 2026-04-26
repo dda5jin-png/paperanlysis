@@ -67,12 +67,16 @@ export interface PaperAnalysis {
   methodology?: {
     researchType?: string;
     dataSource?: string;
+    researchTarget?: string;
+    dataPeriod?: string;
+    sampleSize?: string;
     variables?: VariableItem[];
     analysisMethod?: string[];
   };
   conclusion?: {
     keyFindings?: string[];
     implications?: string[];
+    policySuggestions?: string[];
     limitations?: string;
     futureResearch?: string;
   };

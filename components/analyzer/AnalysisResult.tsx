@@ -387,7 +387,7 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
         icon={<ListTree className="w-4 h-4" />}
         title="연구 방법"
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-xs font-black uppercase tracking-wider text-slate-500">연구유형</p>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
@@ -400,6 +400,26 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
               {data.methodology?.dataSource || "논문에 명시된 자료 출처가 없습니다."}
             </p>
           </div>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">연구대상</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
+              {data.methodology?.researchTarget || "논문에 명시된 연구대상이 없습니다."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">자료기간</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
+              {data.methodology?.dataPeriod || "자료 기간 정보가 없습니다."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">표본수</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
+              {data.methodology?.sampleSize || "표본 수 정보가 없습니다."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-1">
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-xs font-black uppercase tracking-wider text-slate-500">분석방법</p>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-800">
@@ -516,6 +536,20 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
                     <li key={index} className="flex gap-3">
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                       <p className="text-sm leading-relaxed text-slate-700">{implication}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {data.conclusion?.policySuggestions?.length ? (
+              <div>
+                <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">정책 제안 / 제도 개선안</p>
+                <ul className="space-y-2">
+                  {data.conclusion.policySuggestions.map((suggestion, index) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" />
+                      <p className="text-sm leading-relaxed text-slate-700">{suggestion}</p>
                     </li>
                   ))}
                 </ul>

@@ -53,6 +53,9 @@ ${truncated}
   "methodology": {
     "researchType": "예: 문헌연구, 사례연구, 설문조사, 회귀분석, 제도분석 등",
     "dataSource": "자료 출처 또는 분석 대상",
+    "researchTarget": "연구대상 또는 분석 단위",
+    "dataPeriod": "자료 수집/분석 기간",
+    "sampleSize": "표본 수 또는 사례 수",
     "analysisMethod": ["분석 기법1", "분석 기법2"],
     "variables": [
       {
@@ -90,6 +93,7 @@ ${truncated}
   "conclusion": {
     "keyFindings": ["핵심 결과 1", "핵심 결과 2"],
     "implications": ["실무적/정책적 시사점 1"],
+    "policySuggestions": ["정책 제안 또는 제도 개선안 1"],
     "limitations": "한계 요약",
     "futureResearch": "후속 연구 제안"
   }
@@ -99,8 +103,9 @@ ${truncated}
 - researchPurpose는 반드시 우선 추출하세요. 논문 목적, 연구 질문, 연구 의의를 참고해 작성하되 추측은 금지합니다.
 - summary는 핵심이 아닙니다. summary보다 researchPurpose, hypotheses, methodology, variables, conclusion, limitations를 더 신경 써서 채우세요.
 - 가설이 없더라도 researchType, dataSource, analysisMethod, conclusion.keyFindings는 가능한 한 채우세요.
+- researchTarget, dataPeriod, sampleSize가 원문에 보이면 methodology 안에 최대한 채우세요.
 - 변수는 가능하면 종속변수와 독립변수를 모두 넣고, type을 정확히 구분하세요.
-- 시사점이 명시되어 있다면 conclusion.implications에 넣고, summary에도 1문장 정도 반영하세요.
+- 시사점이 명시되어 있다면 conclusion.implications에 넣고, 정책/제도 개선안이 명시되어 있다면 conclusion.policySuggestions에 분리하세요.
 - structuredSummary의 section 이름은 한국어로 통일하세요.
 - domainKeywords는 5개 내외로 핵심 용어만 추리세요.
 
@@ -117,4 +122,4 @@ ${truncated}
 export const buildPremiumAnalysisPrompt = buildFreeAnalysisPrompt;
 
 /** 프롬프트 버전 정보 */
-export const PROMPT_VERSION = "5.3";
+export const PROMPT_VERSION = "5.4";

@@ -132,6 +132,38 @@ function inferDataSource(rawText: string, abstractBlock: string) {
   return cleanBlock(abstractLines.join(" "), 320);
 }
 
+function inferResearchTarget(rawText: string) {
+  return extractSectionByHeaders(
+    rawText,
+    ["연구대상", "분석대상", "조사대상", "연구의 대상", "분석 단위"],
+    ["표본", "자료", "분석방법", "연구결과", "결론"],
+  );
+}
+
+function inferDataPeriod(rawText: string, abstractBlock: string) {
+  const direct = extractSectionByHeaders(
+    rawText,
+    ["연구기간", "분석기간", "자료기간", "조사기간", "자료 수집 기간"],
+    ["분석방법", "연구결과", "결론", "연구의 한계"],
+  );
+  if (direct) return direct;
+
+  const match = `${rawText}\n${abstractBlock}`.match(/(20\d{2}\s*년\s*(?:부터|~|-)\s*20\d{2}\s*년|20\d{2}\s*[.~\-]\s*20\d{2}|최근\s*\d+\s*년간)/);
+  return cleanBlock(match?.[1], 120);
+}
+
+function inferSampleSize(rawText: string, abstractBlock: string) {
+  const direct = extractSectionByHeaders(
+    rawText,
+    ["표본", "표본수", "사례 수", "응답자 수", "조사대상"],
+    ["분석방법", "연구결과", "결론", "연구의 한계"],
+  );
+  if (direct) return cleanBlock(direct, 200);
+
+  const match = `${rawText}\n${abstractBlock}`.match(/(\d+\s*(?:명|건|개|부|호|사례|표본))/);
+  return cleanBlock(match?.[1], 80);
+}
+
 function inferVariables(rawText: string): VariableItem[] {
   const variables: VariableItem[] = [];
   const source = rawText.replace(/\r/g, "");
@@ -189,6 +221,20 @@ function inferFindingsFromAbstract(abstractBlock: string) {
 function inferLimitationsFromAbstract(abstractBlock: string) {
   return splitSentences(abstractBlock, 4).filter((item) =>
     /한계|제약|제한점|아쉬움|추가 연구/.test(item),
+  );
+}
+
+function inferPolicySuggestions(rawText: string, abstractBlock: string) {
+  const section = extractSectionByHeaders(
+    rawText,
+    ["정책적 시사점", "정책 제안", "제도개선 방안", "개선방안", "시사점"],
+    ["연구의 한계", "참고문헌"],
+  );
+
+  if (section) return splitList(section);
+
+  return splitSentences(abstractBlock, 4).filter((item) =>
+    /시사점|제안|개선방안|보완|도입|정비|개편/.test(item),
   );
 }
 
@@ -252,6 +298,18 @@ export function enrichAnalysisFromRawText(rawText: string, analysis: any, filena
     enriched.methodology.dataSource = inferDataSource(rawText, abstractBlock);
   }
 
+  if (!enriched.methodology.researchTarget) {
+    enriched.methodology.researchTarget = inferResearchTarget(rawText);
+  }
+
+  if (!enriched.methodology.dataPeriod) {
+    enriched.methodology.dataPeriod = inferDataPeriod(rawText, abstractBlock);
+  }
+
+  if (!enriched.methodology.sampleSize) {
+    enriched.methodology.sampleSize = inferSampleSize(rawText, abstractBlock);
+  }
+
   if (!Array.isArray(enriched.methodology.analysisMethod) || enriched.methodology.analysisMethod.length === 0) {
     enriched.methodology.analysisMethod = inferAnalysisMethods(`${rawText}\n${abstractBlock}`);
   }
@@ -278,6 +336,25 @@ export function enrichAnalysisFromRawText(rawText: string, analysis: any, filena
     } else if (abstractBlock) {
       const abstractFindings = inferFindingsFromAbstract(abstractBlock);
       if (abstractFindings.length > 0) enriched.conclusion.keyFindings = abstractFindings;
+    }
+  }
+
+  if (!Array.isArray(enriched.conclusion.implications) || enriched.conclusion.implications.length === 0) {
+    const implicationBlock = extractSectionByHeaders(
+      rawText,
+      ["시사점", "정책적 시사점", "실무적 시사점"],
+      ["연구의 한계", "결론", "참고문헌"],
+    );
+    const implications = splitList(implicationBlock);
+    if (implications.length > 0) {
+      enriched.conclusion.implications = implications;
+    }
+  }
+
+  if (!Array.isArray(enriched.conclusion.policySuggestions) || enriched.conclusion.policySuggestions.length === 0) {
+    const suggestions = inferPolicySuggestions(rawText, abstractBlock);
+    if (suggestions.length > 0) {
+      enriched.conclusion.policySuggestions = suggestions;
     }
   }
 
