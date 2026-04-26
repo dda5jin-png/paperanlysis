@@ -12,7 +12,7 @@ interface AnalysisProgressProps {
 const STEP_LABELS: { key: AnalysisState["status"]; label: string }[] = [
   { key: "uploading", label: "파일 전송" },
   { key: "parsing",   label: "텍스트 추출" },
-  { key: "analyzing", label: "AI 구조 분석" },
+  { key: "analyzing", label: "구조 분석" },
   { key: "done",      label: "완료" },
 ];
 
