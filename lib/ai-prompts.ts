@@ -122,4 +122,4 @@ ${truncated}
 export const buildPremiumAnalysisPrompt = buildFreeAnalysisPrompt;
 
 /** 프롬프트 버전 정보 */
-export const PROMPT_VERSION = "5.4";
+export const PROMPT_VERSION = "5.5";

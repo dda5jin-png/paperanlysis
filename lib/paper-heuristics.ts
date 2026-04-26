@@ -61,6 +61,18 @@ function extractAbstractBlock(rawText: string) {
   );
 }
 
+function extractInlineLabeledBlock(rawText: string, labels: string[], stopLabels: string[], maxLength = 420) {
+  const source = rawText.replace(/\r/g, "");
+  const labelPattern = normalizeHeaderRegex(labels);
+  const stopPattern = stopLabels.length ? normalizeHeaderRegex(stopLabels) : "";
+  const regex = new RegExp(
+    `(?:^|\\n|\\s)(?:${labelPattern})\\s*(?:[:：\\-]\\s*)([\\s\\S]{0,${maxLength}}?)(?=${stopPattern ? `(?:\\n|\\s)(?:${stopPattern})\\s*(?:[:：\\-])` : "$"}|$)`,
+    "i",
+  );
+  const match = source.match(regex);
+  return cleanBlock(match?.[1], maxLength);
+}
+
 function splitList(text: string) {
   return text
     .split(/\n|(?<=[.?!])\s+/)
@@ -133,10 +145,18 @@ function inferDataSource(rawText: string, abstractBlock: string) {
 }
 
 function inferResearchTarget(rawText: string) {
-  return extractSectionByHeaders(
+  const section = extractSectionByHeaders(
     rawText,
     ["연구대상", "분석대상", "조사대상", "연구의 대상", "분석 단위"],
     ["표본", "자료", "분석방법", "연구결과", "결론"],
+  );
+  if (section) return section;
+
+  return extractInlineLabeledBlock(
+    rawText,
+    ["연구대상", "분석대상", "조사대상", "연구의 대상", "분석 단위"],
+    ["표본", "자료", "분석방법", "연구결과", "결론"],
+    240,
   );
 }
 
@@ -147,6 +167,14 @@ function inferDataPeriod(rawText: string, abstractBlock: string) {
     ["분석방법", "연구결과", "결론", "연구의 한계"],
   );
   if (direct) return direct;
+
+  const inline = extractInlineLabeledBlock(
+    rawText,
+    ["연구기간", "분석기간", "자료기간", "조사기간", "자료 수집 기간"],
+    ["분석방법", "연구결과", "결론", "연구의 한계"],
+    180,
+  );
+  if (inline) return inline;
 
   const match = `${rawText}\n${abstractBlock}`.match(/(20\d{2}\s*년\s*(?:부터|~|-)\s*20\d{2}\s*년|20\d{2}\s*[.~\-]\s*20\d{2}|최근\s*\d+\s*년간)/);
   return cleanBlock(match?.[1], 120);
@@ -159,6 +187,14 @@ function inferSampleSize(rawText: string, abstractBlock: string) {
     ["분석방법", "연구결과", "결론", "연구의 한계"],
   );
   if (direct) return cleanBlock(direct, 200);
+
+  const inline = extractInlineLabeledBlock(
+    rawText,
+    ["표본", "표본수", "사례 수", "응답자 수", "조사대상"],
+    ["분석방법", "연구결과", "결론", "연구의 한계"],
+    140,
+  );
+  if (inline) return cleanBlock(inline, 140);
 
   const match = `${rawText}\n${abstractBlock}`.match(/(\d+\s*(?:명|건|개|부|호|사례|표본))/);
   return cleanBlock(match?.[1], 80);
@@ -205,6 +241,14 @@ function inferVariables(rawText: string): VariableItem[] {
 }
 
 function inferPurposeFromAbstract(abstractBlock: string) {
+  const labeled = extractInlineLabeledBlock(
+    abstractBlock,
+    ["연구목적", "연구 목적", "목적", "purpose", "objective"],
+    ["연구방법", "방법", "결과", "결론", "시사점"],
+    260,
+  );
+  if (labeled) return labeled;
+
   const sentence = splitSentences(abstractBlock, 3).find((item) =>
     /목적|규명|분석하고자|살펴보고자|검토하고자|도출하고자|밝히고자|확인하고자/.test(item),
   );
@@ -213,12 +257,28 @@ function inferPurposeFromAbstract(abstractBlock: string) {
 }
 
 function inferFindingsFromAbstract(abstractBlock: string) {
+  const labeled = extractInlineLabeledBlock(
+    abstractBlock,
+    ["연구결과", "분석결과", "결과", "results"],
+    ["결론", "시사점", "한계"],
+    320,
+  );
+  if (labeled) return splitList(labeled);
+
   return splitSentences(abstractBlock, 5).filter((item) =>
     /결과|나타났|확인되었|도출되었|시사|제시|영향|유의/.test(item),
   );
 }
 
 function inferLimitationsFromAbstract(abstractBlock: string) {
+  const labeled = extractInlineLabeledBlock(
+    abstractBlock,
+    ["연구의 한계", "한계점", "한계", "limitations"],
+    ["결론", "참고문헌"],
+    220,
+  );
+  if (labeled) return splitList(labeled);
+
   return splitSentences(abstractBlock, 4).filter((item) =>
     /한계|제약|제한점|아쉬움|추가 연구/.test(item),
   );
@@ -233,8 +293,32 @@ function inferPolicySuggestions(rawText: string, abstractBlock: string) {
 
   if (section) return splitList(section);
 
+  const labeled = extractInlineLabeledBlock(
+    `${rawText}\n${abstractBlock}`,
+    ["정책적 시사점", "시사점", "정책 제안", "제도개선 방안", "개선방안", "policy implications"],
+    ["연구의 한계", "한계", "참고문헌"],
+    320,
+  );
+  if (labeled) return splitList(labeled);
+
   return splitSentences(abstractBlock, 4).filter((item) =>
     /시사점|제안|개선방안|보완|도입|정비|개편/.test(item),
+  );
+}
+
+function inferMethodBlock(rawText: string, abstractBlock: string) {
+  const section = extractSectionByHeaders(
+    rawText,
+    ["연구방법", "연구 방법", "분석방법", "자료 및 방법", "연구설계", "연구 모형 및 방법"],
+    ["연구결과", "분석결과", "결론", "연구의 한계"],
+  );
+  if (section) return section;
+
+  return extractInlineLabeledBlock(
+    `${abstractBlock}\n${rawText}`,
+    ["연구방법", "연구 방법", "방법", "methods", "methodology", "자료 및 방법"],
+    ["결과", "연구결과", "분석결과", "결론", "시사점"],
+    420,
   );
 }
 
@@ -256,6 +340,7 @@ function fallbackStructuredSummary(rawText: string) {
 export function enrichAnalysisFromRawText(rawText: string, analysis: any, filename?: string): any {
   const enriched = { ...analysis };
   const abstractBlock = extractAbstractBlock(rawText);
+  const methodBlock = inferMethodBlock(rawText, abstractBlock);
 
   if (looksLikeFilename(enriched.title, filename)) {
     enriched.title = firstMeaningfulLine(rawText) || filename || enriched.title;
@@ -267,6 +352,15 @@ export function enrichAnalysisFromRawText(rawText: string, analysis: any, filena
       ["연구목적", "연구 목적", "연구문제", "문제제기", "연구의 목적"],
       ["연구방법", "연구 방법", "연구모형", "이론적 배경", "선행연구"],
     );
+
+    if (!enriched.researchPurpose) {
+      enriched.researchPurpose = extractInlineLabeledBlock(
+        `${abstractBlock}\n${rawText}`,
+        ["연구목적", "연구 목적", "목적", "purpose", "objective"],
+        ["연구방법", "방법", "결과", "결론", "시사점"],
+        260,
+      );
+    }
 
     if (!enriched.researchPurpose && abstractBlock) {
       enriched.researchPurpose = inferPurposeFromAbstract(abstractBlock);
@@ -291,7 +385,7 @@ export function enrichAnalysisFromRawText(rawText: string, analysis: any, filena
   enriched.methodology = enriched.methodology || {};
 
   if (!enriched.methodology.researchType) {
-    enriched.methodology.researchType = inferResearchType(rawText || abstractBlock);
+    enriched.methodology.researchType = inferResearchType(`${methodBlock}\n${rawText}\n${abstractBlock}`);
   }
 
   if (!enriched.methodology.dataSource) {
@@ -311,7 +405,7 @@ export function enrichAnalysisFromRawText(rawText: string, analysis: any, filena
   }
 
   if (!Array.isArray(enriched.methodology.analysisMethod) || enriched.methodology.analysisMethod.length === 0) {
-    enriched.methodology.analysisMethod = inferAnalysisMethods(`${rawText}\n${abstractBlock}`);
+    enriched.methodology.analysisMethod = inferAnalysisMethods(`${methodBlock}\n${rawText}\n${abstractBlock}`);
   }
 
   if (!Array.isArray(enriched.methodology.variables) || enriched.methodology.variables.length === 0) {
@@ -348,6 +442,17 @@ export function enrichAnalysisFromRawText(rawText: string, analysis: any, filena
     const implications = splitList(implicationBlock);
     if (implications.length > 0) {
       enriched.conclusion.implications = implications;
+    } else {
+      const inlineImplications = extractInlineLabeledBlock(
+        `${abstractBlock}\n${rawText}`,
+        ["시사점", "정책적 시사점", "실무적 시사점", "policy implications"],
+        ["연구의 한계", "한계", "참고문헌"],
+        260,
+      );
+      const inlineList = splitList(inlineImplications);
+      if (inlineList.length > 0) {
+        enriched.conclusion.implications = inlineList;
+      }
     }
   }
 
