@@ -53,6 +53,96 @@ export default function AnalyzerPage() {
   const updateState = (patch: Partial<AnalysisState>) =>
     setState((prev) => ({ ...prev, ...patch }));
 
+  const isStructurallyWeak = (result: PaperAnalysis) => {
+    const missingSignals = [
+      !result.researchPurpose,
+      !(result.hypotheses?.length ?? 0) && !(result.methodology?.variables?.length ?? 0),
+      !result.methodology?.researchType &&
+        !result.methodology?.dataSource &&
+        !(result.methodology?.analysisMethod?.length ?? 0),
+      !(result.conclusion?.keyFindings?.length ?? 0),
+      !(result.limitations?.length ?? 0),
+      (result.summary || "").includes("분석할 논문의 원문이 제공되지 않았습니다."),
+    ].filter(Boolean).length;
+
+    return missingSignals >= 3;
+  };
+
+  const shouldPreferOcr = (result: PaperAnalysis) =>
+    !result.extractionDiagnostics?.reportPdfDetected &&
+    !result.extractionDiagnostics?.ocrApplied &&
+    (Boolean(result.extractionDiagnostics?.ocrSuggested) || isStructurallyWeak(result));
+
+  const runOcrRetry = async (baseResult?: PaperAnalysis, fileOverride?: File) => {
+    const targetFile = fileOverride || state.lastFile;
+    const targetResult = baseResult || state.result;
+
+    if (!targetFile || !targetResult) return null;
+
+    setOcrRetrying(true);
+    try {
+      updateState({
+        status: "analyzing",
+        progress: 20,
+        message: "텍스트 품질이 낮아 OCR 보정을 시작하는 중…",
+      });
+
+      const rawText = await extractTextFromPdfWithOcr(targetFile, (message, progress) => {
+        updateState({
+          status: "analyzing",
+          progress,
+          message,
+        });
+      });
+
+      updateState({
+        status: "analyzing",
+        progress: 65,
+        message: "OCR 텍스트를 바탕으로 다시 분석하는 중…",
+      });
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (!session) {
+        headers["x-guest-token"] = "guest-ocr";
+      }
+
+      const res = await fetch("/api/parse-text", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({
+          rawText,
+          filename: targetFile.name,
+          model: state.selectedModel,
+          originalFileHash: targetResult.fileHash,
+          originalInputHash: targetResult.inputHash,
+          type: targetResult.analysisType === "deep" ? "deep" : "summary",
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "OCR 재분석에 실패했습니다.");
+      }
+
+      const ocrResult = json.result as PaperAnalysis;
+      setState((prev) => ({
+        ...prev,
+        status: "done",
+        progress: 100,
+        message: "OCR 재분석 완료",
+        result: ocrResult,
+      }));
+
+      return ocrResult;
+    } finally {
+      setOcrRetrying(false);
+    }
+  };
+
   const handleUpload = async (file: File) => {
     const isGuest = !session;
 
@@ -127,12 +217,30 @@ export default function AnalyzerPage() {
         setGuestUsed(true);
       }
 
+      const initialResult = json.result as PaperAnalysis;
+
+      if (shouldPreferOcr(initialResult)) {
+        try {
+          await runOcrRetry(initialResult, file);
+          return;
+        } catch {
+          setState((prev) => ({
+            ...prev,
+            status: "done",
+            progress: 100,
+            message: "기본 텍스트 추출 결과",
+            result: initialResult,
+          }));
+          return;
+        }
+      }
+
       setState((prev) => ({
         ...prev,
         status: "done",
         progress: 100,
         message: `분석 완료`,
-        result: json.result as PaperAnalysis,
+        result: initialResult,
       }));
     } catch (err: any) {
       setState((prev) => ({
@@ -153,64 +261,8 @@ export default function AnalyzerPage() {
   };
 
   const handleOcrRetry = async () => {
-    if (!state.lastFile) return;
-
-    setOcrRetrying(true);
     try {
-      updateState({
-        status: "analyzing",
-        progress: 20,
-        message: "OCR로 PDF를 다시 읽는 중…",
-      });
-
-      const rawText = await extractTextFromPdfWithOcr(state.lastFile, (message, progress) => {
-        updateState({
-          status: "analyzing",
-          progress,
-          message,
-        });
-      });
-
-      updateState({
-        status: "analyzing",
-        progress: 65,
-        message: "OCR 텍스트를 바탕으로 다시 분석하는 중…",
-      });
-
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
-      if (!session) {
-        headers["x-guest-token"] = "guest-ocr";
-      }
-
-      const res = await fetch("/api/parse-text", {
-        method: "POST",
-        credentials: "include",
-        headers,
-        body: JSON.stringify({
-          rawText,
-          filename: state.lastFile.name,
-          model: state.selectedModel,
-          originalFileHash: state.result?.fileHash,
-          originalInputHash: state.result?.inputHash,
-          type: state.result?.analysisType === "deep" ? "deep" : "summary",
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "OCR 재분석에 실패했습니다.");
-      }
-
-      setState((prev) => ({
-        ...prev,
-        status: "done",
-        progress: 100,
-        message: "OCR 재분석 완료",
-        result: json.result as PaperAnalysis,
-      }));
+      await runOcrRetry();
     } catch (error: any) {
       setState((prev) => ({
         ...prev,
@@ -220,8 +272,6 @@ export default function AnalyzerPage() {
         error: error.message || "OCR 재분석에 실패했습니다.",
         errorCode: "AI_ERROR",
       }));
-    } finally {
-      setOcrRetrying(false);
     }
   };
 
@@ -445,7 +495,7 @@ export default function AnalyzerPage() {
               <AnalysisResult
                 data={state.result}
                 ocrRetryAction={
-                  state.result.extractionDiagnostics?.ocrSuggested && state.lastFile
+                  (shouldPreferOcr(state.result) || state.result.extractionDiagnostics?.ocrSuggested) && state.lastFile
                     ? {
                         loading: ocrRetrying,
                         onClick: handleOcrRetry,

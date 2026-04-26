@@ -300,13 +300,21 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
             이 파일은 원문 논문이 아니라 논문분석기에서 만든 결과 리포트로 보입니다. 이 경우 연구목적, 방법, 변수 같은 원문 구조 정보가 거의 남아 있지 않아서 분석 품질이 크게 떨어집니다. 원래 논문 PDF를 다시 업로드해 주세요.
           </p>
         </div>
+      ) : extractionDiagnostics?.ocrApplied ? (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
+          <p className="text-sm font-black text-blue-900">OCR 보정이 적용된 분석 결과입니다</p>
+          <p className="mt-1 text-sm leading-relaxed text-blue-800">
+            이 PDF는 기본 텍스트 추출 품질이 낮아서 OCR 경로로 다시 읽은 뒤 분석했습니다.
+            같은 PDF를 다시 분석하면 OCR 보정 결과가 우선 재사용됩니다.
+          </p>
+        </div>
       ) : extractionDiagnostics?.ocrSuggested && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
           <p className="text-sm font-black text-amber-900">텍스트 추출 품질이 낮습니다</p>
           <p className="mt-1 text-sm leading-relaxed text-amber-800">
             {extractionDiagnostics.warning} 현재 추출된 글자 수는 {extractionDiagnostics.charCount.toLocaleString()}자이고,
             읽을 수 있는 문자 비율은 {Math.round(extractionDiagnostics.readableRatio * 100)}%입니다.
-            스캔본이거나 이미지형 PDF라면 OCR 경로를 추가해야 분석 품질이 좋아집니다.
+            스캔본이거나 이미지형 PDF라면 OCR 경로를 적용해야 분석 품질이 좋아집니다.
           </p>
           {ocrRetryAction && (
             <button

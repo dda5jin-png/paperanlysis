@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { buildFreeAnalysisPrompt, buildPremiumAnalysisPrompt } from "@/lib/ai-prompts";
+import crypto from "crypto";
+import { buildFreeAnalysisPrompt, buildPremiumAnalysisPrompt, PROMPT_VERSION } from "@/lib/ai-prompts";
 import { assessExtractedTextQuality } from "@/lib/extraction-diagnostics";
 import { enrichAnalysisFromRawText } from "@/lib/paper-heuristics";
 import { createClient } from "@/lib/supabase/server";
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
     }
 
     const enrichedJson = enrichAnalysisFromRawText(rawText, analysisJson, filename);
+    diagnostics.ocrApplied = true;
 
     const finalResult: PaperAnalysis = {
       id: generateId(),
@@ -86,6 +88,32 @@ export async function POST(req: NextRequest) {
       extractionDiagnostics: diagnostics,
       ...enrichedJson,
     };
+
+    if (user && originalInputHash) {
+      const existing = await supabase
+        .from("analyses")
+        .update({
+          result_json: finalResult,
+          prompt_version: PROMPT_VERSION,
+          status: "completed",
+        })
+        .eq("user_id", user.id)
+        .eq("input_hash", originalInputHash)
+        .select("id")
+        .limit(1);
+
+      if (!existing.data?.length) {
+        await supabase.from("analyses").insert({
+          user_id: user.id,
+          paper_id: crypto.randomUUID(),
+          analysis_type: requestedType,
+          input_hash: originalInputHash,
+          prompt_version: PROMPT_VERSION,
+          result_json: finalResult,
+          status: "completed",
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, result: finalResult });
   } catch (error: any) {

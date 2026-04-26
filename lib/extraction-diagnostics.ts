@@ -1,4 +1,6 @@
-export function assessExtractedTextQuality(rawText: string) {
+import type { ExtractionDiagnostics } from "@/types/paper";
+
+export function assessExtractedTextQuality(rawText: string): ExtractionDiagnostics {
   const normalized = rawText.replace(/\s+/g, " ").trim();
   const charCount = normalized.length;
   const hangulMatches = normalized.match(/[가-힣]/g) ?? [];
