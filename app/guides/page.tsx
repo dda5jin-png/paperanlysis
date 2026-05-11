@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { GuidesClient } from "@/components/guides/GuidesClient";
 
 export const metadata: Metadata = {
-  title: "논문작성 가이드",
+  title: "자료·가이드",
   description:
-    "주제 설정부터 발표자료 정리까지, 석·박사 과정과 실무 연구자를 위한 논문 작성 가이드 모음.",
+    "논문 작성 가이드, 템플릿, 체크리스트, 분석 사례를 한 곳에서 찾는 자료 허브.",
 };
 
 export default function GuidesPage() {
   return (
     <main>
-      <GuidesClient />
+      <Suspense fallback={null}>
+        <GuidesClient />
+      </Suspense>
     </main>
   );
 }

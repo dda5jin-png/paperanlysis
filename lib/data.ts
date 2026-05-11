@@ -4,6 +4,22 @@ export type GuideCategory = {
   desc: string;
 };
 
+export type ContentType = "guide" | "resource" | "case" | "notice";
+
+export type ContentTypeMeta = {
+  slug: ContentType;
+  name: string;
+  desc: string;
+};
+
+export type Attachment = {
+  id: string;
+  name: string;
+  kind: "pdf" | "docx" | "xlsx" | "pptx" | "link";
+  size: string;
+  url: string;
+};
+
 export type GuideBlock =
   | { type: "p"; text: string }
   | { type: "h2"; text: string }
@@ -13,9 +29,13 @@ export type GuideBlock =
 
 export type GuideArticle = {
   slug: string;
+  contentType: ContentType;
   category: string;
   title: string;
   lead: string;
+  tags: string[];
+  attachments?: Attachment[];
+  featured?: boolean;
   readingMinutes: number;
   updatedAt: string;
   author: string;
@@ -36,6 +56,25 @@ export type PricingPlan = {
 
 export type FaqItem = { q: string; a: string };
 
+export type SavedAnalysis = {
+  id: string;
+  title: string;
+  savedAt: string;
+  pages: number;
+  sourceFile: string;
+  status: "분석 완료" | "검토 필요";
+  summary: string;
+  sections: { title: string; text: string }[];
+  recommendedContent: string[];
+};
+
+export const CONTENT_TYPES: ContentTypeMeta[] = [
+  { slug: "guide", name: "가이드", desc: "논문 작성법과 연구 설계 설명글" },
+  { slug: "resource", name: "자료", desc: "체크리스트, 템플릿, 예시 파일" },
+  { slug: "case", name: "사례", desc: "논문 분석 예시와 적용 흐름" },
+  { slug: "notice", name: "공지", desc: "서비스 안내와 업데이트" },
+];
+
 export const GUIDE_CATEGORIES: GuideCategory[] = [
   { slug: "topic", name: "논문 주제 설정", desc: "분야별 주제 좁히기, 연구 공백 찾기" },
   { slug: "question", name: "연구문제 정의", desc: "좋은 연구문제의 조건과 예시" },
@@ -51,9 +90,12 @@ export const GUIDE_CATEGORIES: GuideCategory[] = [
 export const GUIDE_ARTICLES: GuideArticle[] = [
   {
     slug: "how-to-narrow-research-topic",
+    contentType: "guide",
     category: "topic",
     title: "연구 주제를 좁히는 4단계: 관심 영역에서 연구문제까지",
     lead: "막연한 관심에서 출발해 구체적인 연구문제까지 도달하는 실무 절차를 정리합니다.",
+    tags: ["주제 설정", "연구 공백", "연구문제"],
+    featured: true,
     readingMinutes: 8,
     updatedAt: "2026-04-12",
     author: "편집팀",
@@ -80,9 +122,11 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   },
   {
     slug: "define-research-question",
+    contentType: "guide",
     category: "question",
     title: "좋은 연구문제의 조건: FINER 프레임워크로 점검하기",
     lead: "Feasible, Interesting, Novel, Ethical, Relevant. 연구문제 초안을 평가하는 다섯 기준을 실제 예시와 함께 살펴봅니다.",
+    tags: ["연구문제", "FINER", "검토 기준"],
     readingMinutes: 6,
     updatedAt: "2026-04-09",
     author: "편집팀",
@@ -103,9 +147,21 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   },
   {
     slug: "literature-matrix",
+    contentType: "resource",
     category: "review",
     title: "문헌 리뷰 매트릭스 만들기: 스프레드시트 한 장으로 선행연구 정리",
     lead: '50편의 논문을 읽고 나서 "무엇을 읽었는지 기억나지 않는" 문제를 예방하는 실무 도구.',
+    tags: ["선행연구", "리뷰 매트릭스", "템플릿"],
+    attachments: [
+      {
+        id: "literature-matrix-xlsx",
+        name: "문헌 리뷰 매트릭스 템플릿.xlsx",
+        kind: "xlsx",
+        size: "48KB",
+        url: "/downloads/literature-review-matrix.xlsx",
+      },
+    ],
+    featured: true,
     readingMinutes: 7,
     updatedAt: "2026-04-03",
     author: "편집팀",
@@ -130,9 +186,11 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   },
   {
     slug: "regression-interpretation",
+    contentType: "guide",
     category: "stats",
     title: "회귀분석 결과표 읽는 법: 계수, 표준오차, p값의 의미",
     lead: "통계 수업이 오래됐더라도 결과표를 스스로 해석할 수 있도록 핵심만 정리합니다.",
+    tags: ["통계", "회귀분석", "결과표"],
     readingMinutes: 9,
     updatedAt: "2026-03-28",
     author: "편집팀",
@@ -151,9 +209,11 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   },
   {
     slug: "hypothesis-setting",
+    contentType: "guide",
     category: "hypothesis",
     title: "가설 설정의 세 가지 원칙: 방향성, 이론 근거, 검정 가능성",
     lead: "가설은 직관이 아니라 이론에서 도출해야 합니다. 실제 논문 예시와 함께 살펴봅니다.",
+    tags: ["가설", "이론 근거", "검정"],
     readingMinutes: 6,
     updatedAt: "2026-03-21",
     author: "편집팀",
@@ -170,9 +230,11 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   },
   {
     slug: "survey-design-basics",
+    contentType: "guide",
     category: "survey",
     title: "설문 설계의 기초: 척도 선택부터 응답 편향 관리까지",
     lead: "설문 설계의 실수는 분석 단계에서 회복이 거의 불가능합니다. 설계 단계에서 점검할 체크리스트를 정리합니다.",
+    tags: ["설문", "척도", "표본"],
     readingMinutes: 8,
     updatedAt: "2026-03-14",
     author: "편집팀",
@@ -186,6 +248,95 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
       { type: "p", text: "회귀분석 기준 최소 10~20 × 독립변수 수를 권장합니다. 구조방정식(SEM)은 200명 이상이 관행이며, 경로 복잡도가 높을수록 더 큰 표본이 필요합니다." },
     ],
     related: ["regression-interpretation", "hypothesis-setting"],
+  },
+  {
+    slug: "thesis-writing-checklist",
+    contentType: "resource",
+    category: "writing",
+    title: "학위논문 제출 전 최종 점검 체크리스트",
+    lead: "목차, 표기, 인용, 초록, 부록까지 제출 직전에 확인해야 할 항목을 한 장으로 정리했습니다.",
+    tags: ["체크리스트", "논문 작성", "제출"],
+    attachments: [
+      {
+        id: "thesis-checklist-pdf",
+        name: "학위논문 최종 점검 체크리스트.pdf",
+        kind: "pdf",
+        size: "132KB",
+        url: "/downloads/thesis-writing-checklist.pdf",
+      },
+    ],
+    readingMinutes: 4,
+    updatedAt: "2026-04-24",
+    author: "편집팀",
+    body: [
+      { type: "p", text: "제출 직전에는 내용 자체보다 형식 오류가 더 자주 발목을 잡습니다. 지도교수 피드백을 반영한 뒤에는 표지, 목차, 표와 그림 번호, 참고문헌 형식처럼 기계적으로 확인할 수 있는 항목을 별도 목록으로 점검하는 편이 좋습니다." },
+      { type: "h2", text: "먼저 확인할 항목" },
+      { type: "ul", items: [
+        "학교 양식에 맞는 표지와 인준지 사용 여부",
+        "본문 목차와 실제 제목 번호의 일치 여부",
+        "표, 그림, 부록 번호의 누락 여부",
+        "본문 인용과 참고문헌 목록의 상호 일치 여부",
+      ] },
+      { type: "h2", text: "첨부파일 활용법" },
+      { type: "p", text: "첨부된 체크리스트를 내려받아 항목별 담당자와 확인일을 적어두면, 마지막 수정 단계에서 같은 오류를 반복해서 확인하는 시간을 줄일 수 있습니다." },
+    ],
+    related: ["literature-matrix", "survey-design-basics"],
+  },
+  {
+    slug: "sample-analysis-flow",
+    contentType: "case",
+    category: "framework",
+    title: "분석 결과를 연구모형으로 바꾸는 예시 흐름",
+    lead: "업로드한 논문 요약 결과에서 변수 관계, 가설, 발표자료 목차를 뽑아내는 과정을 예시로 보여드립니다.",
+    tags: ["분석 사례", "연구모형", "발표자료"],
+    readingMinutes: 5,
+    updatedAt: "2026-04-22",
+    author: "편집팀",
+    body: [
+      { type: "p", text: "논문 분석 결과는 단순 요약으로 끝내기보다 연구 설계의 재료로 다시 분류해야 효용이 커집니다. 핵심 변수, 표본, 방법론, 한계, 후속 연구 제안을 나누어 보면 내 연구와 연결할 수 있는 지점이 보입니다." },
+      { type: "h2", text: "1단계. 변수와 대상 추출" },
+      { type: "p", text: "요약 결과에서 독립변수, 종속변수, 조절·매개변수, 연구 대상을 별도 메모로 분리합니다." },
+      { type: "h2", text: "2단계. 가설 문장으로 변환" },
+      { type: "p", text: "변수 관계를 방향성이 있는 문장으로 바꿉니다. 이때 해당 논문의 이론 근거를 함께 적어두면 나중에 선행연구 문단으로 확장하기 쉽습니다." },
+      { type: "h2", text: "3단계. 발표자료 목차로 정리" },
+      { type: "p", text: "배경, 연구문제, 연구모형, 방법, 결과, 시사점 순서로 재배치하면 디펜스나 세미나 발표자료의 뼈대를 빠르게 만들 수 있습니다." },
+    ],
+    related: ["hypothesis-setting", "regression-interpretation"],
+  },
+];
+
+export const SAVED_ANALYSES: SavedAnalysis[] = [
+  {
+    id: "1",
+    title: "하이브리드 근무 환경에서의 지식공유 행동",
+    savedAt: "2026-04-20",
+    pages: 14,
+    sourceFile: "hybrid-work-knowledge-sharing.pdf",
+    status: "분석 완료",
+    summary:
+      "하이브리드 근무 환경에서 팀 신뢰와 커뮤니케이션 빈도가 지식공유 행동에 미치는 영향을 검토한 논문입니다. 연구모형과 가설 구조가 명확해 선행연구 정리에 활용하기 좋습니다.",
+    sections: [
+      { title: "핵심 변수", text: "팀 신뢰, 커뮤니케이션 빈도, 심리적 안전감, 지식공유 행동" },
+      { title: "방법론", text: "설문 기반 회귀분석과 매개효과 검정을 사용했습니다." },
+      { title: "활용 포인트", text: "하이브리드 업무 맥락에서 조직행동 연구 주제를 좁힐 때 참고할 수 있습니다." },
+    ],
+    recommendedContent: ["literature-matrix", "hypothesis-setting", "regression-interpretation"],
+  },
+  {
+    id: "2",
+    title: "조직지원인식과 혁신행동의 관계에서 자율성의 매개 효과",
+    savedAt: "2026-04-15",
+    pages: 22,
+    sourceFile: "pos-autonomy-innovation.pdf",
+    status: "검토 필요",
+    summary:
+      "조직지원인식이 자율성을 거쳐 혁신행동으로 이어지는 경로를 다룹니다. 매개효과 해석과 가설 설정 예시로 연결하기 좋습니다.",
+    sections: [
+      { title: "핵심 변수", text: "조직지원인식, 자율성, 혁신행동" },
+      { title: "방법론", text: "구조화된 설문과 회귀 기반 매개효과 분석을 사용했습니다." },
+      { title: "검토 필요", text: "측정 척도와 표본 특성이 내 연구 대상과 맞는지 추가 확인이 필요합니다." },
+    ],
+    recommendedContent: ["define-research-question", "hypothesis-setting", "survey-design-basics"],
   },
 ];
 

@@ -36,13 +36,14 @@ export function Navbar() {
 
         <nav className="hidden lg:flex items-center gap-8">
           <NavLink href="/">홈</NavLink>
-          <NavLink href="/guides">논문작성 가이드</NavLink>
+          <NavLink href="/guides">자료·가이드</NavLink>
           <NavLink href="/analyzer">논문분석기</NavLink>
           <NavLink href="/pricing">요금제</NavLink>
         </nav>
 
         <div className="hidden lg:flex items-center gap-3">
           <Link href="/library" className="text-[15px] text-ink-700 hover:text-ink-900">내 서고</Link>
+          <Link href="/admin" className="text-[15px] text-ink-700 hover:text-ink-900">관리자</Link>
           <span className="h-5 w-px bg-ink-200" />
           <Link href="/auth/login" className="text-[15px] text-ink-700 hover:text-ink-900">로그인</Link>
           <Button size="sm" onClick={() => router.push("/auth/signup")}>회원가입</Button>
@@ -78,10 +79,11 @@ export function Navbar() {
           <Container className="py-4 space-y-1">
             {[
               ["/", "홈"],
-              ["/guides", "논문작성 가이드"],
+              ["/guides", "자료·가이드"],
               ["/analyzer", "논문분석기"],
               ["/pricing", "요금제"],
               ["/library", "내 서고"],
+              ["/admin", "관리자"],
             ].map(([to, label]) => (
               <Link key={to} href={to} className="block py-3 text-[16px] text-ink-900 border-b border-ink-100">
                 {label}

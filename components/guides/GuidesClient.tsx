@@ -1,42 +1,50 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { ArticleListItem } from "@/components/guides/ArticleListItem";
-import { GUIDE_ARTICLES, GUIDE_CATEGORIES } from "@/lib/data";
+import { CONTENT_TYPES, GUIDE_ARTICLES, GUIDE_CATEGORIES } from "@/lib/data";
 
 export function GuidesClient() {
-  const [query, setQuery] = useState("");
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get("query") || "");
+  const [activeType, setActiveType] = useState("all");
   const [activeCategory, setActiveCategory] = useState("all");
 
   const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
     return GUIDE_ARTICLES.filter((a) => {
-      const matchQ = !query || a.title.includes(query) || a.lead.includes(query);
+      const haystack = [a.title, a.lead, ...a.tags].join(" ").toLowerCase();
+      const matchQ = !normalizedQuery || haystack.includes(normalizedQuery);
+      const matchType = activeType === "all" || a.contentType === activeType;
       const matchC = activeCategory === "all" || a.category === activeCategory;
-      return matchQ && matchC;
+      return matchQ && matchType && matchC;
     });
-  }, [query, activeCategory]);
+  }, [query, activeType, activeCategory]);
+
+  const featured = GUIDE_ARTICLES.filter((a) => a.featured).slice(0, 2);
 
   return (
     <>
       <section className="bg-white border-b border-ink-200">
         <Container className="py-12 lg:py-16">
-          <SectionLabel>가이드 허브</SectionLabel>
+          <SectionLabel>자료·가이드 허브</SectionLabel>
           <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight">
-            논문작성 가이드
+            필요한 글과 자료를 한 곳에서 찾기
           </h1>
           <p className="mt-4 text-ink-700 leading-7 max-w-2xl">
-            주제 설정부터 발표자료 정리까지, 실무에 필요한 자료를 카테고리별로 정리했습니다.
-            현재 {GUIDE_ARTICLES.length}개의 가이드가 공개되어 있으며, 매주 업데이트됩니다.
+            관리자에서 등록한 공개 콘텐츠는 글, 템플릿, 사례로 분류되어 이 허브에 모입니다.
+            검색어와 유형, 주제를 함께 조합해 원하는 자료를 빠르게 좁혀보세요.
           </p>
 
-          <div className="mt-8 flex gap-3 max-w-lg">
+          <div className="mt-8 grid sm:grid-cols-[1fr_auto] gap-3 max-w-3xl">
             <div className="relative flex-1">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="가이드 검색 (예: 회귀분석, 가설)"
+                placeholder="검색 (예: 회귀분석, 체크리스트, 가설)"
                 className="w-full h-12 pl-11 pr-4 rounded-lg border border-ink-200 bg-white text-[15px] placeholder:text-ink-500 focus:border-brand-700 focus:ring-2 focus:ring-brand-100 outline-none"
               />
               <svg
@@ -52,6 +60,40 @@ export function GuidesClient() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </div>
+            {(query || activeType !== "all" || activeCategory !== "all") && (
+              <button
+                onClick={() => {
+                  setQuery("");
+                  setActiveType("all");
+                  setActiveCategory("all");
+                }}
+                className="h-12 px-4 rounded-lg border border-ink-200 text-sm text-ink-700 hover:bg-ink-50"
+              >
+                필터 초기화
+              </button>
+            )}
+          </div>
+
+          <div className="mt-8 grid sm:grid-cols-4 gap-3 max-w-3xl">
+            {CONTENT_TYPES.map((type) => {
+              const count = GUIDE_ARTICLES.filter((a) => a.contentType === type.slug).length;
+              return (
+                <button
+                  key={type.slug}
+                  onClick={() => setActiveType(type.slug)}
+                  className={`text-left rounded-lg border p-4 transition ${
+                    activeType === type.slug
+                      ? "border-ink-900 bg-ink-900 text-white"
+                      : "border-ink-200 bg-white hover:border-ink-300"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{type.name}</div>
+                  <div className={`mt-1 text-xs ${activeType === type.slug ? "text-ink-200" : "text-ink-500"}`}>
+                    {count}개
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </Container>
       </section>
@@ -113,16 +155,21 @@ export function GuidesClient() {
               </div>
             </section>
           )}
+          {filtered.length === 0 && activeCategory === "all" && (
+            <div className="py-16 text-center text-ink-500 border-y border-ink-200">
+              조건에 맞는 콘텐츠가 없습니다.
+            </div>
+          )}
         </div>
 
         <aside className="hidden lg:block">
           <div className="sticky top-36 space-y-8">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-ink-500">
-                인기 가이드
+                추천 콘텐츠
               </div>
               <ul className="mt-4 space-y-3">
-                {GUIDE_ARTICLES.slice(0, 5).map((a) => (
+                {featured.map((a) => (
                   <li key={a.slug}>
                     <Link
                       href={`/guides/${a.slug}`}
@@ -134,16 +181,16 @@ export function GuidesClient() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-xl border border-ink-200 p-5">
-              <div className="text-sm font-semibold">가이드가 부족한가요?</div>
+            <div className="rounded-lg border border-ink-200 p-5">
+              <div className="text-sm font-semibold">운영 연결 구조</div>
               <p className="mt-2 text-sm text-ink-700 leading-6">
-                읽고 싶은 주제를 알려주시면 다음 가이드 제작에 반영합니다.
+                관리자에서 유형, 주제, 태그, 첨부파일을 지정하면 이 목록과 상세 페이지에 함께 반영됩니다.
               </p>
               <Link
-                href="/contact"
+                href="/admin/content/new"
                 className="mt-3 inline-block text-sm text-brand-700 font-medium"
               >
-                주제 제안하기 →
+                콘텐츠 등록 화면 보기 →
               </Link>
             </div>
           </div>
