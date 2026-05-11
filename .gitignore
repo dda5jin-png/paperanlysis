@@ -10,3 +10,5 @@ DS_Store
 
 # Local build artifacts
 tmp/
+.vercel
+.env*.local

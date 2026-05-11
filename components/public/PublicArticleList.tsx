@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import type { ArchiveContent } from "@/lib/archive-content-types";
-import { getDisplayContentTitle } from "@/lib/content-presentation";
+import { getDisplayContentTitle, getResourceSubcategory } from "@/lib/content-presentation";
 
 export function PublicArticleList({
   title,
@@ -15,7 +15,7 @@ export function PublicArticleList({
   contents,
   searchPlaceholder,
   emptyMessage = "아직 공개된 글이 없습니다.",
-  getCategoryLabel,
+  categoryMode = "default",
   categoryLabelTitle = "카테고리별 보기",
 }: {
   title: string;
@@ -25,17 +25,20 @@ export function PublicArticleList({
   contents: ArchiveContent[];
   searchPlaceholder?: string;
   emptyMessage?: string;
-  getCategoryLabel?: (item: ArchiveContent) => string;
+  categoryMode?: "default" | "resource";
   categoryLabelTitle?: string;
 }) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("전체");
   const [activeTag, setActiveTag] = useState("전체");
 
+  const getCategoryLabel = useCallback(
+    (item: ArchiveContent) => (categoryMode === "resource" ? getResourceSubcategory(item) : item.category),
+    [categoryMode],
+  );
+
   const categories = useMemo(() => {
-    const unique = Array.from(
-      new Set(contents.map((item) => (getCategoryLabel ? getCategoryLabel(item) : item.category)).filter(Boolean)),
-    );
+    const unique = Array.from(new Set(contents.map((item) => getCategoryLabel(item)).filter(Boolean)));
     return ["전체", ...unique];
   }, [contents, getCategoryLabel]);
 
@@ -59,7 +62,7 @@ export function PublicArticleList({
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return contents.filter((item) => {
-      const categoryLabel = getCategoryLabel ? getCategoryLabel(item) : item.category;
+      const categoryLabel = getCategoryLabel(item);
       const matchesCategory = activeCategory === "전체" || categoryLabel === activeCategory;
       const matchesTag = activeTag === "전체" || item.tags.includes(activeTag);
       if (!normalizedQuery) return matchesCategory && matchesTag;
@@ -168,7 +171,7 @@ export function PublicArticleList({
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-semibold text-brand-700">
-                    {getCategoryLabel ? getCategoryLabel(item) : item.category}
+                    {getCategoryLabel(item)}
                   </span>
                   <span className="text-xs text-ink-400">·</span>
                   <span className="text-xs text-ink-500">

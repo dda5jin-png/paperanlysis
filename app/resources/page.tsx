@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PublicArticleList } from "@/components/public/PublicArticleList";
-import { getPublishedArchiveContentsBySection, getResourceSubcategory } from "@/lib/content-sections";
+import { getPublishedArchiveContentsBySection } from "@/lib/content-sections";
 import { ARCHIVE_SOURCES } from "@/lib/guide-data";
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ export default async function ResourcesPage() {
         contents={contents}
         searchPlaceholder="자료실 검색: 심사규정, 데이터, 사례, 예시"
         emptyMessage="아직 공개된 자료실 글이 없습니다."
-        getCategoryLabel={getResourceSubcategory}
+        categoryMode="resource"
         categoryLabelTitle="자료 종류별 보기"
       />
 
