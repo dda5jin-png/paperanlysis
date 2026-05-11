@@ -26,6 +26,8 @@ import { DEFAULT_MODEL_ID } from "@/lib/models";
 import type { AnalysisState, PaperAnalysis } from "@/types/paper";
 
 const GUEST_USED_KEY = "paper_guest_used"; // localStorage 키
+const ANALYSIS_NOTICE =
+  "분석 결과는 논문 이해를 돕기 위한 참고용 초안입니다. 원문 해석, 인용 여부, 연구 적용 여부는 반드시 사용자가 직접 확인해야 합니다. 본 서비스는 논문 대필, 표절 회피, 학위 취득 보장을 제공하지 않습니다.";
 
 const IDLE_STATE: AnalysisState = {
   status: "idle",
@@ -295,11 +297,12 @@ export default function AnalyzerPage() {
             <div className="mb-8 text-center">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">논문분석기</p>
               <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
-                PDF 업로드 → 자동 분석
+                PDF 논문 구조 정리
               </h1>
               <p className="mx-auto mt-4 max-w-2xl leading-7 text-slate-600">
-                논문 PDF를 올리면 연구목적, 방법, 결과, 결론을 섹션별로 정리합니다.
-                가이드 아카이브와 분리된 분석 전용 작업 공간입니다.
+                PDF를 업로드하면 논문의 주요 정보를 항목별로 정리합니다.
+                초록, 연구목적, 방법론, 주요 결과, 한계점을 분리해 보여주고,
+                필요한 내용은 사용자가 다시 검토해 인용이나 메모에 활용할 수 있습니다.
               </p>
             </div>
           )}
@@ -308,7 +311,7 @@ export default function AnalyzerPage() {
           {!session && !guestUsed && state.status === "idle" && (
             <div className="mb-6 flex items-center justify-between gap-4 px-6 py-4 bg-blue-50 border border-blue-100 rounded-2xl">
               <p className="text-sm font-bold text-blue-800">
-                🎉 비회원도 1회 무료로 논문을 분석할 수 있습니다. 회원가입하면 하루 3회 + 서고 기능을 이용할 수 있어요.
+                비회원도 1회 논문 구조 정리를 이용할 수 있습니다. 회원가입하면 분석 결과를 서고에 저장할 수 있습니다.
               </p>
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
@@ -342,7 +345,7 @@ export default function AnalyzerPage() {
                   <div>
                     <h2 className="text-xl font-black text-slate-900">분석할 PDF 선택</h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      파일을 올리면 바로 텍스트 추출과 구조 분석을 시작합니다.
+                      파일을 올리면 텍스트 추출 후 주요 항목을 구조화해 보여줍니다.
                     </p>
                   </div>
                   <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
@@ -356,32 +359,37 @@ export default function AnalyzerPage() {
                 />
               </div>
 
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+                <p className="text-sm font-black text-amber-900">이용 전 확인</p>
+                <p className="mt-1 text-sm leading-7 text-amber-800">{ANALYSIS_NOTICE}</p>
+              </div>
+
               {state.status === "idle" && (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {[
                     {
                       icon: <Sparkles className="h-5 w-5" />,
-                      title: "자동 구조 분석",
+                      title: "항목별 구조 정리",
                       description:
-                        "핵심 요약, 연구 가설, 변수 구조, 연구의 한계를 한 화면에서 바로 정리합니다.",
+                        "초록, 연구목적, 연구질문, 방법론, 결과, 한계점을 나누어 확인할 수 있게 정리합니다.",
                     },
                     {
                       icon: <Download className="h-5 w-5" />,
                       title: "PDF 리포트 저장",
                       description:
-                        "분석 결과를 출력용 리포트로 저장해서 지도교수 미팅이나 개인 정리에 바로 활용할 수 있습니다.",
+                        "참고용 정리 결과를 출력용 리포트로 저장해 읽기 메모와 검토 기록에 활용할 수 있습니다.",
                     },
                     {
                       icon: <Quote className="h-5 w-5" />,
-                      title: "인용 · Markdown 복사",
+                      title: "메모용 복사",
                       description:
-                        "참고용 인용 문장과 구조화된 Markdown을 복사해 워드, 노션, 옵시디언 초안에 붙여 넣을 수 있습니다.",
+                        "구조화된 Markdown과 참고용 문장을 복사할 수 있습니다. 실제 인용은 원문 확인 후 사용해야 합니다.",
                     },
                     {
                       icon: <BookMarked className="h-5 w-5" />,
                       title: "서고 누적 관리",
                       description:
-                        "회원가입 후에는 분석 결과를 서고에 저장하고, 메모·태그·즐겨찾기·비교 분석으로 이어갈 수 있습니다.",
+                        "회원가입 후에는 분석 결과를 서고에 저장하고, 메모, 태그, 즐겨찾기로 다시 확인할 수 있습니다.",
                     },
                   ].map((feature) => (
                     <div
@@ -414,7 +422,7 @@ export default function AnalyzerPage() {
                   {/* 에러 코드별 안내 */}
                   {state.errorCode === "LOGIN_REQUIRED" && (
                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-4">
-                      <p className="text-sm text-blue-800 font-medium">회원가입하면 하루 3회 무료 + 서고 저장 기능을 이용할 수 있어요.</p>
+                      <p className="text-sm text-blue-800 font-medium">회원가입하면 분석 결과를 서고에 저장하고 다시 확인할 수 있습니다.</p>
                       <button
                         onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
                         className="shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl"
@@ -486,20 +494,24 @@ export default function AnalyzerPage() {
 
               {/* 넛지: 분석 완료 후 비회원 가입 유도 */}
               {!session && (
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-8 text-center shadow-lg shadow-blue-200/50 mb-6">
-                  <h3 className="text-xl md:text-2xl font-black text-white mb-2">이 완벽한 분석 결과를 잃어버리지 마세요!</h3>
-                  <p className="text-blue-100 mb-6 text-sm md:text-base">
-                    지금 무료로 가입하시면 이 결과가 내 서고에 자동 저장되며, <br className="hidden md:block" />
-                    <strong>매일 3개</strong>의 논문을 무료로 정밀 분석하실 수 있습니다.
+                <div className="rounded-3xl border border-blue-100 bg-blue-50 p-8 text-center mb-6">
+                  <h3 className="text-xl md:text-2xl font-black text-blue-950 mb-2">분석 결과를 다시 확인하고 싶다면</h3>
+                  <p className="text-blue-800 mb-6 text-sm leading-7 md:text-base">
+                    회원가입 후에는 분석 결과를 서고에 저장하고, 메모와 태그로 다시 찾아볼 수 있습니다.
                   </p>
                   <button
                     onClick={() => window.dispatchEvent(new CustomEvent("openAuthModal"))}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-white text-blue-600 font-black rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95"
+                    className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all active:scale-95"
                   >
-                    3초 만에 무료 회원가입
+                    회원가입 / 로그인
                   </button>
                 </div>
               )}
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+                <p className="text-sm font-black text-amber-900">분석 결과 확인 전 안내</p>
+                <p className="mt-1 text-sm leading-7 text-amber-800">{ANALYSIS_NOTICE}</p>
+              </div>
 
               <AnalysisResult
                 data={state.result}

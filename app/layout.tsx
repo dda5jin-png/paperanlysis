@@ -7,14 +7,14 @@ import Script from "next/script";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paperanalysis.cloud';
 
 export const metadata: Metadata = {
-  title: "논문분석기 | 논문 분석·요약·구조화 서비스",
-  description: "복잡한 학술 논문 PDF를 업로드하고 1분 만에 논문 요약, 연구 방법론, 핵심 결과를 구조화된 리포트로 확인하세요. 전공 지식 없이도 논문의 핵심을 꿰뚫어봅니다.",
+  title: "논문분석기 | 논문 읽기 보조 도구와 작성 가이드",
+  description: "논문 PDF에서 연구목적, 연구질문, 방법론, 주요 결과, 한계를 항목별로 정리해 논문을 읽고 비교하는 데 도움을 주는 참고용 도구입니다.",
   keywords: ["논문분석", "논문요약", "논문분석툴", "연구방법론", "학술지분석", "대학원논문", "논문구조화", "논문분석기", "PaperAnalysis"],
   authors: [{ name: "Paper Analysis Team" }],
   metadataBase: new URL(SITE_URL),
   openGraph: {
-    title: "논문분석기 — 복잡한 논문을 가장 빠르게 이해하는 방법",
-    description: "PDF 업로드 한 번으로 논문 요약부터 핵심 결과까지. 구조화된 분석 리포트를 확인하세요.",
+    title: "논문분석기 — 논문을 읽기 쉽게 정리합니다",
+    description: "논문 PDF의 연구목적, 방법론, 주요 결과, 한계를 항목별로 정리해 원문 검토와 읽기 메모를 돕습니다.",
     url: SITE_URL,
     siteName: "논문분석기",
     images: [
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
         url: "/og-image.png", // 배포 후 이미지 추가 필요
         width: 1200,
         height: 630,
-        alt: "논문분석기 - 논문 정밀 분석 서비스",
+        alt: "논문분석기 - 논문 읽기 보조 도구",
       },
     ],
     locale: "ko_KR",
@@ -30,8 +30,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "논문분석기 — 논문 분석·요약 서비스",
-    description: "PDF 업로드 한 번으로 논문 요약부터 핵심 결과까지 한 곳에서.",
+    title: "논문분석기 — 논문 읽기 보조 도구",
+    description: "논문 PDF의 주요 항목을 구조화해 원문 검토와 선행연구 정리에 참고할 수 있게 돕습니다.",
     images: ["/og-image.png"],
   },
   appleWebApp: {

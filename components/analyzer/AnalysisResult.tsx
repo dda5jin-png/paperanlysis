@@ -253,6 +253,14 @@ export default function AnalysisResult({ data, onSaved, ocrRetryAction }: Analys
   return (
     <div className="space-y-4">
 
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+        <p className="text-sm font-black text-amber-900">참고용 분석 결과</p>
+        <p className="mt-1 text-sm leading-7 text-amber-800">
+          분석 결과는 논문 이해를 돕기 위한 참고용 초안입니다. 원문 해석, 인용 여부, 연구 적용 여부는 반드시
+          사용자가 직접 확인해야 합니다. 본 서비스는 논문 대필, 표절 회피, 학위 취득 보장을 제공하지 않습니다.
+        </p>
+      </div>
+
       {/* ── 논문 기본 정보 카드 ─────────────────────────── */}
       <div className="bg-slate-900 rounded-2xl p-6 text-white">
         <div className="flex items-start justify-between gap-4">

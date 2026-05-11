@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { ArticleListItem } from "@/components/guides/ArticleListItem";
-import { GUIDE_CATEGORIES, getCategory, getGuidesByCategory } from "@/lib/guide-data";
+import { GUIDE_CATEGORIES, getCategory, getGuidesByCategory, getLatestGuides } from "@/lib/guide-data";
 
 type Props = { params: { slug: string } };
 
@@ -25,6 +25,7 @@ export default function CategoryPage({ params }: Props) {
   const category = getCategory(params.slug);
   if (!category) notFound();
   const guides = getGuidesByCategory(category.slug);
+  const fallbackGuides = getLatestGuides(4);
 
   return (
     <main>
@@ -44,8 +45,17 @@ export default function CategoryPage({ params }: Props) {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-ink-200 p-8 text-ink-500">
-              이 카테고리의 공개 가이드는 준비 중입니다.
+            <div className="rounded-2xl border border-ink-200 p-8">
+              <h2 className="text-xl font-black text-ink-900">관련해서 함께 읽을 가이드</h2>
+              <p className="mt-3 text-sm leading-7 text-ink-600">
+                이 주제와 연결해서 확인할 수 있는 기본 가이드를 먼저 소개합니다. 연구 주제, 연구질문,
+                선행연구, 방법론을 차례로 읽으면 논문 작성 흐름을 잡는 데 도움이 됩니다.
+              </p>
+              <div className="mt-5 divide-y divide-ink-200 border-y border-ink-200">
+                {fallbackGuides.map((guide) => (
+                  <ArticleListItem key={guide.slug} article={guide} />
+                ))}
+              </div>
             </div>
           )}
         </div>

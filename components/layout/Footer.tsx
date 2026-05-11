@@ -58,9 +58,16 @@ export function Footer() {
             items={[["/contact", "dda5.jin@gmail.com"]]}
           />
         </div>
+        <div className="mt-10 rounded-lg border border-ink-200 bg-ink-50 p-5">
+          <div className="text-sm font-black text-ink-900">운영 원칙</div>
+          <p className="mt-2 max-w-4xl text-sm leading-7 text-ink-600">
+            분석 결과는 논문 이해를 돕기 위한 참고용 초안입니다. 원문 해석, 인용 여부, 연구 적용 여부는 반드시
+            사용자가 직접 확인해야 합니다. 본 서비스는 논문 대필, 표절 회피, 학위 취득 보장을 제공하지 않습니다.
+          </p>
+        </div>
         <div className="mt-10 pt-6 border-t border-ink-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-ink-500">
           <div>© 2026 paperanalysis.cloud</div>
-          <div>논문을 이해하고 정리하는 가장 깔끔한 방법</div>
+          <div>논문을 읽고 정리하기 위한 참고 도구와 가이드</div>
         </div>
       </Container>
     </footer>

@@ -52,22 +52,19 @@ export default function ResearchGuide() {
           ))}
         </div>
 
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 md:p-12 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2"></div>
-          
-          <div className="relative z-10 grid md:grid-cols-2 gap-10 items-center">
+        <div className="rounded-3xl bg-slate-900 p-8 text-white shadow-xl md:p-12">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 border border-white/20 text-white text-xs font-black uppercase tracking-widest mb-4">
                 <Lightbulb className="w-3.5 h-3.5" /> AI Paper Analysis
               </div>
               <h3 className="text-2xl md:text-3xl font-black mb-4 leading-tight">
-                단 1분 만에 완성하는<br />
-                직관적인 논문 뼈대
+                논문을 읽기 쉽게<br />
+                항목별로 정리합니다
               </h3>
               <p className="text-blue-100/90 text-sm md:text-base leading-relaxed mb-6">
-                논문분석기(Paper Analysis)는 최신 인공지능 기술을 활용하여, 
-                난해한 전공 용어와 복잡한 수식이 섞인 해외 논문도 한글로 매끄럽게 요약해 드립니다. 
-                연구 방법론과 핵심 시사점을 빠르게 파악하여 여러분의 연구 효율을 극대화하세요.
+                논문분석기(Paper Analysis)는 연구목적, 연구질문, 방법론, 주요 결과, 한계를 나누어 정리합니다.
+                분석 결과는 참고용 초안이며, 인용과 연구 적용 여부는 사용자가 원문을 직접 확인해야 합니다.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-2 text-sm font-medium text-white">
