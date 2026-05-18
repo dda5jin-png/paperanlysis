@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import type { ArchiveContent } from "@/lib/archive-content-types";
+import { unstable_noStore as noStore } from "next/cache";
 export { getDisplayContentTitle, getResourceSubcategory } from "@/lib/content-presentation";
 
 export type PublicSection = "blog" | "resources";
@@ -24,6 +25,8 @@ export function classifyArchiveContent(content: Pick<ArchiveContent, "title" | "
 }
 
 export async function getPublishedArchiveContents(limit?: number): Promise<ArchiveContent[]> {
+  noStore();
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return [];
   }
