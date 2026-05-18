@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/Container";
 
-export const metadata: Metadata = { title: "Contact" };
+export const metadata: Metadata = {
+  title: "Contact | 논문분석기",
+  description: "논문분석기 이용 문의, 오류 제보, 결제 및 환불 문의를 위한 연락처입니다.",
+};
 
 export default function ContactPage() {
   return (

@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "환불정책 | 논문분석기",
   description: "논문분석기 유료 이용권 환불 및 취소 정책입니다.",
-  robots: { index: false },
 };
 
 export default function RefundPage() {

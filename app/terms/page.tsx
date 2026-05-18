@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "이용약관 | 논문분석기",
   description: "논문분석기 서비스 이용약관입니다.",
-  robots: { index: false },
 };
 
 export default function TermsPage() {

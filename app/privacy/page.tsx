@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "개인정보처리방침 | 논문분석기",
   description: "논문분석기 서비스의 개인정보처리방침입니다.",
-  robots: { index: false },
 };
 
 export default function PrivacyPage() {
@@ -108,7 +107,20 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-2">
             또한, Google AdSense를 통한 광고 서비스를 제공하며, 이와 관련하여 Google이 쿠키를 사용할 수 있습니다.
-            자세한 내용은{" "}
+            Google을 포함한 제3자 광고 사업자는 이용자의 이전 방문 기록을 기반으로 광고를 게재하기 위해 쿠키를 사용할 수 있으며,
+            Google 광고 쿠키는 이용자가 이 사이트 및 다른 사이트를 방문한 정보를 바탕으로 맞춤형 광고를 제공하는 데 사용될 수 있습니다.
+          </p>
+          <p className="mt-2">
+            이용자는{" "}
+            <a
+              href="https://www.google.com/settings/ads"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              Google 광고 설정
+            </a>
+            에서 맞춤형 광고를 거부할 수 있습니다. 자세한 내용은{" "}
             <a
               href="https://policies.google.com/privacy"
               target="_blank"

@@ -341,6 +341,8 @@ ${sourceLines || "후보 출처 없음. 출처를 새로 꾸며내지 말 것."}
 - 실제 논문 작성자가 바로 따라할 수 있는 자료형 설명
 - 너무 강의체가 아니라 차분하고 전문적인 톤
 - 제목과 tags에는 자료실, 예시, 체크리스트, 데이터, 심사규정, 석사논문 중 문맥에 맞는 단어를 최소 1개 포함
+- 제목은 반드시 자연스러운 한국어 제목으로 작성하고, 영어 원문 제목을 그대로 쓰지 말 것
+- "경량 초안", "무료 운영 모드", "후보 출처", "운영자가 보강", "핵심 정리" 같은 내부 운영 문구를 본문과 요약에 쓰지 말 것
 
 메인 가이드 규칙:
 - original content로 작성
@@ -420,6 +422,14 @@ function stripJsonFence(value: string) {
 function validateGeneratedContent(guide: GeneratedGuideData, naver: NaverBlogSummary) {
   if (!guide?.title || !guide.sections || !naver?.naver_title) {
     throw new Error("AI response is missing required archive content fields");
+  }
+
+  const fullText = JSON.stringify({ guide, naver });
+  if (/경량 초안|무료 운영 모드|후보 출처|운영자가|핵심 정리/.test(fullText)) {
+    throw new Error("AI response contains internal draft wording and needs regeneration");
+  }
+  if (/[A-Za-z]{4,}/.test(guide.title) && !/APA|PDF|AI|DOI|Zotero|EndNote|Mendeley/.test(guide.title)) {
+    throw new Error("AI response title is not localized enough for public publishing");
   }
 }
 
