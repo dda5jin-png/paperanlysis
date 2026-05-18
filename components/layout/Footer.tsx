@@ -65,6 +65,18 @@ export function Footer() {
             사용자가 직접 확인해야 합니다. 본 서비스는 논문 대필, 표절 회피, 학위 취득 보장을 제공하지 않습니다.
           </p>
         </div>
+        <div className="mt-8 rounded-lg border border-ink-200 bg-white p-5 text-sm leading-7 text-ink-600">
+          <div className="font-black text-ink-900">사업자정보</div>
+          <div className="mt-2 grid gap-x-6 gap-y-1 md:grid-cols-2">
+            <div>상호명: 한국미술심리치료교육원</div>
+            <div>대표자명: 진헌호</div>
+            <div>사업자등록번호: 896-41-01460</div>
+            <div>고객센터: dda5.jin@gmail.com</div>
+            <div className="md:col-span-2">
+              사업장 주소: 서울특별시 서초구 고무래로10길 16, 101동 108호(반포동, 반포두산힐스빌)
+            </div>
+          </div>
+        </div>
         <div className="mt-10 pt-6 border-t border-ink-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-ink-500">
           <div>© 2026 paperanalysis.cloud</div>
           <div>논문을 읽고 정리하기 위한 참고 도구와 가이드</div>
