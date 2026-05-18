@@ -3,6 +3,10 @@
     {
       "path": "/api/archive/weekly-update",
       "schedule": "0 0 * * 1"
+    },
+    {
+      "path": "/api/archive/auto-publish",
+      "schedule": "0 1 * * 1"
     }
   ]
 }

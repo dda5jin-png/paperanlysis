@@ -5,6 +5,9 @@ export { getDisplayContentTitle, getResourceSubcategory } from "@/lib/content-pr
 export type PublicSection = "blog" | "resources";
 
 const RESOURCE_KEYWORDS = [
+  "자료실",
+  "resource",
+  "resources",
   "심사규정",
   "석사논문",
   "데이터",

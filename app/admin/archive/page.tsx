@@ -52,6 +52,12 @@ const categoryOptions = [
 ];
 
 function formatError(error: string) {
+  if (error === "Unauthorized") {
+    return "로그인이 필요합니다. 오른쪽 위 로그인 버튼으로 관리자 계정에 로그인한 뒤 다시 열어 주세요.";
+  }
+  if (error === "Forbidden") {
+    return "현재 로그인한 계정에 관리자 권한이 없습니다. 관리자 계정인지 확인해 주세요.";
+  }
   if (error.includes("archive_contents") || error.includes("schema cache")) {
     return "archive_contents 테이블이 아직 준비되지 않았습니다. Supabase SQL Editor에서 supabase/archive-content-schema.sql 파일 내용을 실행한 뒤 새로고침해 주세요.";
   }
