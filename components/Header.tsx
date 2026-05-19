@@ -110,7 +110,6 @@ export default function Header() {
           <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
             <NavLink href="/" active={pathname === "/"}>홈</NavLink>
             <NavLink href="/guide" active={pathname?.startsWith("/guide")}>논문 가이드</NavLink>
-            <NavLink href="/blog" active={pathname?.startsWith("/blog")}>논문 블로그</NavLink>
             <NavLink href="/resources" active={pathname?.startsWith("/resources")}>자료실</NavLink>
             <NavLink href="/analyzer" active={pathname === "/analyzer"}>논문분석기</NavLink>
             <NavLink href="/about" active={pathname === "/about"}>About</NavLink>
@@ -208,7 +207,6 @@ export default function Header() {
               {[
                 ["/", "홈"],
                 ["/guide", "논문 가이드"],
-                ["/blog", "논문 블로그"],
                 ["/resources", "자료실"],
                 ["/analyzer", "논문분석기"],
                 ["/about", "About"],

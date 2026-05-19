@@ -30,7 +30,6 @@ export function Footer() {
             items={[
               ["/", "홈"],
               ["/guide", "논문 가이드"],
-              ["/blog", "논문 블로그"],
               ["/resources", "자료실"],
               ["/analyzer", "논문분석기"],
               ["/pricing", "요금제"],

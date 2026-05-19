@@ -3,25 +3,10 @@ import type { ArchiveContent } from "@/lib/archive-content-types";
 import { unstable_noStore as noStore } from "next/cache";
 export { getDisplayContentTitle, getResourceSubcategory } from "@/lib/content-presentation";
 
-export type PublicSection = "blog" | "resources";
-
-const RESOURCE_KEYWORDS = [
-  "자료실",
-  "resource",
-  "resources",
-  "심사규정",
-  "석사논문",
-  "데이터",
-  "사이트",
-  "예시",
-  "사례",
-  "zotero",
-  "조사보고서",
-];
+export type PublicSection = "resources";
 
 export function classifyArchiveContent(content: Pick<ArchiveContent, "title" | "tags" | "category">): PublicSection {
-  const haystack = `${content.title} ${content.category} ${content.tags.join(" ")}`.toLowerCase();
-  return RESOURCE_KEYWORDS.some((keyword) => haystack.includes(keyword.toLowerCase())) ? "resources" : "blog";
+  return "resources";
 }
 
 export async function getPublishedArchiveContents(limit?: number): Promise<ArchiveContent[]> {
@@ -113,6 +98,5 @@ export async function getPublishedContentBySlug(slug: string): Promise<ArchiveCo
 }
 
 export function getCanonicalContentPath(content: ArchiveContent) {
-  const section = classifyArchiveContent(content);
-  return `/${section}/${content.slug}`;
+  return `/resources/${content.slug}`;
 }

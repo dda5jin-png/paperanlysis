@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { GUIDE_ARTICLES } from "@/lib/guide-data";
-import { classifyArchiveContent, getPublishedArchiveContents } from "@/lib/content-sections";
+import { getPublishedArchiveContents } from "@/lib/content-sections";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://paperanalysis.cloud";
 
@@ -25,12 +25,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE_URL}/guide`,
       lastModified: now,
       changeFrequency: "weekly",
-      priority: 0.9,
-    },
-    {
-      url: `${SITE_URL}/blog`,
-      lastModified: now,
-      changeFrequency: "daily",
       priority: 0.9,
     },
     {
@@ -96,15 +90,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  const publicContentRoutes: MetadataRoute.Sitemap = publishedContents.map((content) => {
-    const section = classifyArchiveContent(content);
-    return {
-      url: `${SITE_URL}/${section}/${content.slug}`,
-      lastModified: new Date(content.published_at ?? content.updated_at),
-      changeFrequency: "monthly",
-      priority: section === "blog" ? 0.8 : 0.7,
-    };
-  });
+  const publicContentRoutes: MetadataRoute.Sitemap = publishedContents.map((content) => ({
+    url: `${SITE_URL}/resources/${content.slug}`,
+    lastModified: new Date(content.published_at ?? content.updated_at),
+    changeFrequency: "monthly",
+    priority: 0.7,
+  }));
 
   return [...staticRoutes, ...guideRoutes, ...publicContentRoutes];
 }
