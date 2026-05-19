@@ -33,6 +33,24 @@ const MAX_SOURCE_CANDIDATES = 3;
 const MAX_ABSTRACT_LENGTH = 500;
 const MAX_EXCERPT_LENGTH = 320;
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+const ARCHIVE_EDITORIAL_AGENTS = [
+  {
+    name: "구조 추출 에이전트",
+    task: "후보 출처에서 연구 질문, 방법, 핵심 주장, 한계, 적용 맥락을 구분한다.",
+  },
+  {
+    name: "해석/비평 에이전트",
+    task: "한국 대학원생 입장에서 왜 중요한지, 기존 작성 습관과 무엇이 다른지, 어디서 오해가 생기는지 판단한다.",
+  },
+  {
+    name: "한국어 편집 에이전트",
+    task: "영어식 제목과 번역투를 제거하고, 저장해두고 다시 볼 만한 자연스러운 한국어 자료실 글로 재작성한다.",
+  },
+  {
+    name: "품질검수 에이전트",
+    task: "원문 근거 없는 과장, 얕은 일반론, 영어 제목 잔존, 내부 운영 문구, 체크리스트 부실 여부를 검사한다.",
+  },
+];
 
 export async function generateArchiveContent(input: GenerateArchiveContentInput): Promise<GeneratedArchiveContent> {
   const picked = input.topic
@@ -96,35 +114,37 @@ function buildTemplateFallbackContent(input: {
 
   return {
     guide_data: {
-      title: `${input.topic} 핵심 정리`,
+      title: buildFallbackTitle(input.topic),
       one_line_summary: `${input.topic}을 준비할 때 먼저 점검해야 할 기준과 실행 순서를 정리했습니다.`,
-      summary: `이 글은 논문 작성 과정에서 참고할 수 있는 핵심 개념과 적용 포인트를 정리한 글입니다. 원문 자료의 주요 내용을 바탕으로, 대학원생이 실제 논문 작성 과정에서 확인해야 할 질문과 체크리스트를 함께 제공합니다.`,
+      summary: `이 글은 ${input.topic}을 단순 요약이 아니라 실제 논문 작성 판단 기준으로 바꾸기 위한 자료입니다. 관련 출처의 공통 논점을 바탕으로, 대학원생이 초안 작성 전에 무엇을 확인하고 어떤 순서로 적용해야 하는지 정리했습니다.`,
       category: input.category,
       tags,
       reading_time: "3분",
       sections: {
         when_to_use: `${input.topic}의 방향을 먼저 잡아야 할 때, 관련 선행연구를 읽기 전에 핵심 기준을 빠르게 정리하고 싶을 때, 지도교수 피드백 전에 초안 구조를 점검하고 싶을 때 유용합니다.`,
         core_concepts: [
-          `${input.topic}에서는 연구 목적과 범위를 먼저 명확히 해야 합니다.`,
+          `${input.topic}에서는 용어를 아는 것보다 연구 목적, 자료 범위, 독자가 기대하는 근거 수준을 함께 맞추는 일이 먼저입니다.`,
           input.keywords.length > 0
-            ? `${input.keywords.join(", ")} 같은 키워드를 중심으로 관련 개념을 확인합니다.`
-            : "주제 관련 핵심 개념을 중심으로 확인합니다.",
+            ? `${input.keywords.join(", ")} 같은 키워드는 검색어가 아니라 논문의 판단 축으로 써야 합니다. 각 키워드가 연구질문, 방법론, 목차 중 어디에 연결되는지 확인해야 합니다.`
+            : "주제 관련 핵심 개념은 정의, 적용 범위, 논문 본문에서의 역할을 나누어 확인해야 합니다.",
           sourceTitles.length > 0
-            ? `함께 확인할 만한 자료로는 ${sourceTitles.join(", ")} 등이 있습니다.`
+            ? `함께 확인할 만한 자료로는 ${sourceTitles.join(", ")} 등이 있습니다. 이 자료들은 결론을 그대로 가져오기보다 어떤 기준으로 문제를 좁히는지 보는 근거로 활용하는 편이 좋습니다.`
             : "관련 자료를 읽을 때는 출처, 연구대상, 방법론, 결론의 범위를 함께 확인해야 합니다.",
         ].join("\n\n"),
         practical_steps: [
-          "1. 연구 목적을 한 문장으로 먼저 적습니다.",
-          "2. 다루지 않을 범위까지 함께 적어 주제를 좁힙니다.",
-          "3. 관련 선행연구 초록 3~5개를 읽고 반복되는 개념을 표시합니다.",
-          "4. 연구질문이나 핵심 검토 포인트를 2~3개로 압축합니다.",
-          "5. 위 내용을 실제 목차나 발표 구조로 연결해 봅니다.",
+          "1. 지금 쓰려는 논문에서 이 주제가 필요한 이유를 한 문장으로 적습니다.",
+          "2. 포함할 범위와 제외할 범위를 나누어, 자료를 더 모으기 전에 판단 기준을 고정합니다.",
+          "3. 관련 선행연구 초록 3~5개를 읽고 반복되는 개념, 자주 쓰이는 방법, 빠진 대상을 표시합니다.",
+          "4. 표시한 내용을 연구질문, 방법론, 목차 항목으로 각각 옮겨 봅니다.",
+          "5. 지도교수나 심사자가 물을 만한 반론을 2개 이상 적고, 본문 어디에서 답할지 정합니다.",
+          "6. 마지막으로 제목, 초록, 목차가 같은 문제의식을 가리키는지 확인합니다.",
         ].join("\n\n"),
         common_mistakes: [
-          "주제를 너무 넓게 잡아 자료만 많아지고 논지가 약해지는 경우",
-          "선행연구를 충분히 확인하지 않고 결론을 먼저 정하는 경우",
-          "키워드만 정리하고 실제 연구문제로 연결하지 못하는 경우",
-          "인용 가능한 출처보다 주장 범위가 더 넓어지는 경우",
+          "주제를 넓게 잡은 채 자료만 늘려 논문의 판단 기준이 흐려지는 경우",
+          "선행연구를 충분히 확인하기 전에 결론부터 정해 출처가 주장을 따라오지 못하는 경우",
+          "키워드를 모으는 데서 멈추고 연구질문, 방법론, 목차로 연결하지 못하는 경우",
+          "인용 가능한 출처보다 주장 범위가 더 넓어져 심사 과정에서 방어하기 어려워지는 경우",
+          "좋은 표현을 찾는 데 집중하다가 실제로 검증해야 할 변수, 사례, 자료 범위를 놓치는 경우",
         ].join("\n\n"),
         checklist: [
           "주제를 한 문장으로 설명할 수 있다.",
@@ -182,6 +202,16 @@ function buildFallbackTags(topic: string, keywords: string[]) {
         .filter(Boolean),
     ),
   ).slice(0, 6);
+}
+
+function buildFallbackTitle(topic: string) {
+  if (/주제/.test(topic)) return "논문 주제를 연구질문으로 좁히는 체크리스트";
+  if (/선행|문헌/.test(topic)) return "선행연구를 연구 공백으로 연결하는 방법";
+  if (/연구질문|연구문제/.test(topic)) return "좋은 연구질문을 만드는 판단 기준";
+  if (/방법론/.test(topic)) return "연구방법론 선택 전에 확인할 기준";
+  if (/참고|인용|APA/.test(topic)) return "참고문헌 오류를 줄이는 APA 점검법";
+  if (/발표|PPT|디펜스/.test(topic)) return "논문 발표자료를 심사용 구조로 바꾸는 법";
+  return `${topic}을 논문 초안에 적용하는 방법`;
 }
 
 async function generateWithFallback(prompt: string) {
@@ -311,6 +341,9 @@ function buildArchiveContentPrompt(input: {
     abstract?: string;
   }[];
 }) {
+  const agentLines = ARCHIVE_EDITORIAL_AGENTS.map(
+    (agent, index) => `${index + 1}. ${agent.name}: ${agent.task}`,
+  ).join("\n");
   const sourceLines = input.sourceCandidates
     .map((source, index) => {
       return `${index + 1}. 제목: ${source.title}
@@ -323,11 +356,14 @@ URL: ${source.url || "없음"}
     })
     .join("\n");
 
-  return `당신은 한국어 논문작성 자료실의 편집자입니다.
+  return `당신은 한국어 논문작성 자료실의 수석 편집자입니다.
 
 목표: "${input.topic}" 주제로 한국 대학원생이 저장해두고 반복해서 볼 만한 실무 자료실 글을 작성하세요.
 카테고리: ${input.category}
 키워드: ${input.keywords.join(", ")}
+
+작업은 아래 편집국 에이전트들이 순서대로 검토한 결과처럼 수행하세요. JSON에는 에이전트 이름을 쓰지 말고, 검토 결과만 반영하세요.
+${agentLines}
 
 참고 가능한 후보 출처:
 ${sourceLines || "후보 출처 없음. 출처를 새로 꾸며내지 말 것."}
@@ -342,14 +378,21 @@ ${sourceLines || "후보 출처 없음. 출처를 새로 꾸며내지 말 것."}
 - 너무 강의체가 아니라 차분하고 전문적인 톤
 - 제목과 tags에는 자료실, 예시, 체크리스트, 데이터, 심사규정, 석사논문 중 문맥에 맞는 단어를 최소 1개 포함
 - 제목은 반드시 자연스러운 한국어 제목으로 작성하고, 영어 원문 제목을 그대로 쓰지 말 것
+- 제목은 원문 제목의 직역이 아니라 한국어 독자가 얻을 판단 기준이나 문제의식을 드러내는 콘텐츠 제목으로 쓸 것
+- 제목에 "핵심 정리", "요약", "분석"을 붙여 마무리하지 말 것
 - "경량 초안", "무료 운영 모드", "후보 출처", "운영자가 보강", "핵심 정리" 같은 내부 운영 문구를 본문과 요약에 쓰지 말 것
 
 메인 가이드 규칙:
 - original content로 작성
 - 최소 1,200자 이상의 실질 내용
-- practical_steps는 단계가 분명해야 함
+- summary에는 이 글의 문제의식, 독자가 얻을 판단 기준, 적용 상황을 모두 포함
+- when_to_use에는 독자가 실제로 막히는 상황 3개 이상 포함
+- core_concepts에는 개념 설명뿐 아니라 왜 중요한지와 오해하기 쉬운 지점을 포함
+- practical_steps는 단계가 분명해야 하며 각 단계가 다음 단계로 이어져야 함
+- common_mistakes는 단순 금지 목록이 아니라 왜 문제가 되는지까지 설명
 - checklist는 5~8개
 - "무엇을 확인해야 하는지", "어디서 막히는지", "바로 적용하는 순서"가 모두 드러나야 함
+- 일반론만 반복하지 말고, 원문 출처에서 확인되는 개념을 한국어 논문 작성 맥락으로 해석할 것
 
 네이버 블로그 요약 규칙:
 - 단순 짧은 광고글 금지
@@ -367,6 +410,13 @@ ${sourceLines || "후보 출처 없음. 출처를 새로 꾸며내지 말 것."}
 - original_excerpt에는 원문 초록 또는 핵심 문장을 짧게 보존
 - korean_summary에는 해당 출처를 한국어로 2~4문장 분량으로 자연스럽게 정리
 - 새 DOI, 새 URL, 새 출처 이름을 꾸며내지 말 것
+
+품질검수 기준:
+- 제목이 영어 원문처럼 보이면 실패
+- 본문이 "중요합니다/필요합니다"만 반복하고 판단 기준이 없으면 실패
+- 출처 없이 특정 연구 결과를 단정하면 실패
+- 실무 적용 순서, 한계/주의점, 독자가 남길 질문 중 하나라도 없으면 실패
+- 최종 출력 직전에 위 실패 조건을 스스로 고친 뒤 JSON만 출력
 
 반드시 아래 JSON만 출력:
 {
@@ -428,9 +478,43 @@ function validateGeneratedContent(guide: GeneratedGuideData, naver: NaverBlogSum
   if (/경량 초안|무료 운영 모드|후보 출처|운영자가|핵심 정리/.test(fullText)) {
     throw new Error("AI response contains internal draft wording and needs regeneration");
   }
-  if (/[A-Za-z]{4,}/.test(guide.title) && !/APA|PDF|AI|DOI|Zotero|EndNote|Mendeley/.test(guide.title)) {
+  if (!isLocalizedPublicTitle(guide.title) || !isLocalizedPublicTitle(naver.naver_title)) {
     throw new Error("AI response title is not localized enough for public publishing");
   }
+  if (hasGenericTitleEnding(guide.title) || hasGenericTitleEnding(naver.naver_title)) {
+    throw new Error("AI response title is too generic for public publishing");
+  }
+  if (hasThinEditorialContent(guide)) {
+    throw new Error("AI response is too thin and needs more editorial insight");
+  }
+}
+
+function isLocalizedPublicTitle(title: string) {
+  if (!title.trim()) return false;
+  const allowlist = /APA|PDF|AI|DOI|Zotero|EndNote|Mendeley|PPT/i;
+  return !(/[A-Za-z]{4,}/.test(title) && !allowlist.test(title));
+}
+
+function hasGenericTitleEnding(title: string) {
+  return /(핵심\s*정리|요약|분석)\s*$/.test(title.trim());
+}
+
+function hasThinEditorialContent(guide: GeneratedGuideData) {
+  const sections = guide.sections;
+  const body = [
+    guide.summary,
+    sections.when_to_use,
+    sections.core_concepts,
+    sections.practical_steps,
+    sections.common_mistakes,
+    ...(sections.checklist || []),
+  ].join(" ");
+
+  const hasEnoughLength = body.replace(/\s+/g, "").length >= 700;
+  const hasChecklist = Array.isArray(sections.checklist) && sections.checklist.length >= 5;
+  const hasEditorialSignals = /판단|기준|적용|범위|연구질문|방법론|목차|한계|주의|실수|반론|심사/.test(body);
+
+  return !hasEnoughLength || !hasChecklist || !hasEditorialSignals;
 }
 
 function normalizeNaverSummary(summary: NaverBlogSummary): NaverBlogSummary {
