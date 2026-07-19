@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PublicArticleList } from "@/components/public/PublicArticleList";
+import { ResourceLibrary } from "@/components/public/ResourceLibrary";
 import { getPublishedArchiveContentsBySection } from "@/lib/content-sections";
 import { ARCHIVE_SOURCES } from "@/lib/guide-data";
 
@@ -18,17 +18,7 @@ export default async function ResourcesPage() {
 
   return (
     <main>
-      <PublicArticleList
-        title="논문 자료실"
-        description="논문을 쓰다가 막히는 지점, 참고할 사례, 심사규정, 데이터 사이트처럼 저장해두고 반복해서 보게 되는 콘텐츠를 한곳에 정리했습니다. 필요한 항목을 버튼으로 좁혀가며 바로 볼 수 있게 구성했습니다."
-        sectionLabel="Resources"
-        basePath="/resources"
-        contents={contents}
-        searchPlaceholder="자료실 검색: 지도교수, 심사규정, 데이터, 사례, 예시"
-        emptyMessage="아직 공개된 자료실 글이 없습니다."
-        categoryMode="resource"
-        categoryLabelTitle="자료 종류별 보기"
-      />
+      <ResourceLibrary contents={contents} />
 
       <section className="border-t border-ink-200 bg-ink-50">
         <div className="container mx-auto px-6 py-12 lg:py-16">

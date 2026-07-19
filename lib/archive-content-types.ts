@@ -15,6 +15,12 @@ export type GeneratedGuideData = {
     common_mistakes: string;
     checklist: string[];
   };
+  /** 자동발행 로테이션 추적 키 (자동발행 글에만 존재) */
+  topic_key?: string;
+  /** 명시적 섹션 분류: blog | resources (자동발행 글에만 존재) */
+  section?: string;
+  /** 자료실 하위분류 (자동발행 resources 글에만 존재) */
+  subcategory?: string | null;
 };
 
 export type NaverBlogSummary = {

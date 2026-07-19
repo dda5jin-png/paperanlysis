@@ -5,7 +5,10 @@ export { getDisplayContentTitle, getResourceSubcategory } from "@/lib/content-pr
 
 export type PublicSection = "resources";
 
-export function classifyArchiveContent(content: Pick<ArchiveContent, "title" | "tags" | "category">): PublicSection {
+// 모든 공개 글은 자료실로 통합 (원격의 통합 정책 유지)
+export function classifyArchiveContent(
+  _content: Pick<ArchiveContent, "title" | "tags" | "category"> & Partial<Pick<ArchiveContent, "guide_data">>,
+): PublicSection {
   return "resources";
 }
 

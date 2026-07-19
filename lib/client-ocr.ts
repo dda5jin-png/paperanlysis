@@ -4,10 +4,30 @@ import { createWorker } from "tesseract.js";
 
 type OcrProgressCallback = (message: string, progress: number) => void;
 
+function buildOcrPagePlan(totalPages: number, maxPages: number) {
+  if (totalPages <= maxPages) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const frontCount = Math.min(totalPages, Math.max(4, maxPages - 2));
+  const backCount = Math.max(0, maxPages - frontCount);
+  const selected = new Set<number>();
+
+  for (let page = 1; page <= frontCount; page += 1) {
+    selected.add(page);
+  }
+
+  for (let page = totalPages - backCount + 1; page <= totalPages; page += 1) {
+    if (page > 0) selected.add(page);
+  }
+
+  return Array.from(selected).sort((a, b) => a - b);
+}
+
 export async function extractTextFromPdfWithOcr(
   file: File,
   onProgress?: OcrProgressCallback,
-  maxPages = 5,
+  maxPages = 8,
 ) {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -24,11 +44,16 @@ export async function extractTextFromPdfWithOcr(
   try {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-    const pageCount = Math.min(pdf.numPages, maxPages);
+    const pagePlan = buildOcrPagePlan(pdf.numPages, maxPages);
+    const pageCount = pagePlan.length;
     const chunks: string[] = [];
 
-    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-      onProgress?.(`OCR 페이지 ${pageNumber}/${pageCount} 처리 중…`, 20 + Math.round((pageNumber / pageCount) * 20));
+    for (let index = 0; index < pagePlan.length; index += 1) {
+      const pageNumber = pagePlan[index];
+      onProgress?.(
+        `OCR 페이지 ${pageNumber}/${pdf.numPages} 처리 중…`,
+        20 + Math.round(((index + 1) / pageCount) * 20),
+      );
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1.8 });
       const canvas = document.createElement("canvas");

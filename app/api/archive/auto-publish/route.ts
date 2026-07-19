@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runArchiveAutoPublisher } from "@/lib/archive-auto-publisher";
+import { runAutoPublish } from "@/lib/archive-auto-publish";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,10 +12,9 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const dryRun = searchParams.get("dryRun") === "true";
-  const limit = Number(searchParams.get("limit") ?? "1");
 
-  const result = await runArchiveAutoPublisher({ dryRun, limit });
-  return NextResponse.json(result);
+  const result = await runAutoPublish({ dryRun });
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }
 
 export async function POST(request: Request) {
@@ -24,12 +23,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const result = await runArchiveAutoPublisher({
-    dryRun: body?.dryRun === true,
-    limit: Number(body?.limit ?? 1),
-  });
-
-  return NextResponse.json(result);
+  const result = await runAutoPublish({ dryRun: body?.dryRun === true });
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }
 
 function isAuthorized(request: Request) {

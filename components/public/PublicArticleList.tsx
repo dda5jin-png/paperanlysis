@@ -37,14 +37,27 @@ export function PublicArticleList({
     [categoryMode],
   );
 
+  // 같은 제목의 글은 최신 1개만 표시 (중복 발행 안전망)
+  const dedupedContents = useMemo(() => {
+    const seen = new Set<string>();
+    const result: ArchiveContent[] = [];
+    for (const item of contents) {
+      const key = getDisplayContentTitle(item).toLowerCase().replace(/\s+/g, " ").trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(item);
+    }
+    return result;
+  }, [contents]);
+
   const categories = useMemo(() => {
-    const unique = Array.from(new Set(contents.map((item) => getCategoryLabel(item)).filter(Boolean)));
+    const unique = Array.from(new Set(dedupedContents.map((item) => getCategoryLabel(item)).filter(Boolean)));
     return ["전체", ...unique];
-  }, [contents, getCategoryLabel]);
+  }, [dedupedContents, getCategoryLabel]);
 
   const topTags = useMemo(() => {
     const counts = new Map<string, number>();
-    contents.forEach((item) => {
+    dedupedContents.forEach((item) => {
       item.tags.forEach((tag) => {
         counts.set(tag, (counts.get(tag) ?? 0) + 1);
       });
@@ -57,11 +70,11 @@ export function PublicArticleList({
         .slice(0, 8)
         .map(([tag]) => tag),
     ];
-  }, [contents]);
+  }, [dedupedContents]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return contents.filter((item) => {
+    return dedupedContents.filter((item) => {
       const categoryLabel = getCategoryLabel(item);
       const matchesCategory = activeCategory === "전체" || categoryLabel === activeCategory;
       const matchesTag = activeTag === "전체" || item.tags.includes(activeTag);
@@ -72,7 +85,7 @@ export function PublicArticleList({
         item.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery));
       return matchesCategory && matchesTag && matchesQuery;
     });
-  }, [activeCategory, activeTag, contents, getCategoryLabel, query]);
+  }, [activeCategory, activeTag, dedupedContents, getCategoryLabel, query]);
 
   return (
     <>

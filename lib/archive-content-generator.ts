@@ -12,6 +12,8 @@ export type GenerateArchiveContentInput = {
   category?: string;
   keywords?: string[];
   sourceCandidates?: NormalizedAcademicWork[];
+  /** true면 AI 생성 실패 시 템플릿 폴백 대신 에러를 던집니다. (자동발행에서 동일한 템플릿 글이 반복 발행되는 것을 방지) */
+  disableTemplateFallback?: boolean;
 };
 
 export type GeneratedArchiveContent = {
@@ -84,6 +86,11 @@ export async function generateArchiveContent(input: GenerateArchiveContentInput)
   try {
     parsed = await generateWithFallback(prompt);
   } catch (_error) {
+    if (input.disableTemplateFallback) {
+      throw _error instanceof Error
+        ? _error
+        : new Error("AI 가이드 생성에 실패했습니다.");
+    }
     parsed = buildTemplateFallbackContent({
       topic: picked.topic,
       category: picked.category,

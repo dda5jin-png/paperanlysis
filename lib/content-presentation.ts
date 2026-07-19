@@ -17,7 +17,12 @@ export function getDisplayContentTitle(content: Pick<ArchiveContent, "slug" | "t
   return TITLE_OVERRIDES[content.slug] ?? content.title;
 }
 
-export function getResourceSubcategory(content: Pick<ArchiveContent, "title" | "tags" | "category">) {
+export function getResourceSubcategory(
+  content: Pick<ArchiveContent, "title" | "tags" | "category"> & Partial<Pick<ArchiveContent, "guide_data">>,
+) {
+  // 자동발행 파이프라인이 저장한 명시적 하위분류를 우선 사용
+  if (content.guide_data?.subcategory) return content.guide_data.subcategory;
+
   const haystack = `${content.title} ${content.category} ${content.tags.join(" ")}`.toLowerCase();
 
   if (haystack.includes("심사규정") || haystack.includes("분량")) return "심사규정";
